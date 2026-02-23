@@ -56,8 +56,10 @@
     "id": "r_mlzbmidw_gro82u",
     "publicCode": "626",
     "createdAt": 1771859881371,
-    "expiresAt": 1772032681371,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_b862159bc3f608_19beb0c6380",
