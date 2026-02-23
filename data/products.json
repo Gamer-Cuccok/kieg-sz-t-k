@@ -362,7 +362,7 @@
       "id": "p_f711f17c5fdd3_19b6a7bed1f",
       "categoryId": "bood12k",
       "status": "ok",
-      "stock": 10,
+      "stock": 9,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/bjKpw35c/7-watermelon-ice-NOBG.png",
@@ -648,7 +648,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771879914189,
-    "updatedAt": "2026-02-23T20:51:54.189Z"
+    "rev": 1771880257413,
+    "updatedAt": "2026-02-23T20:57:37.413Z"
   }
 }
