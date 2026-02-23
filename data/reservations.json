@@ -40,8 +40,10 @@
     "id": "r_mlzahji3_w0fzfc",
     "publicCode": "696",
     "createdAt": 1771857969918,
-    "expiresAt": 1772030769918,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_4f4efd0510951_19b6ae36cba",
