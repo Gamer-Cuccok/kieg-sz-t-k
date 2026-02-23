@@ -340,7 +340,7 @@
       "status": "soon",
       "stock": 5,
       "visible": false,
-      "visibleJD": true,
+      "visibleJD": false,
       "price": null,
       "priceJD": null,
       "image": "https://i.ibb.co/k6wHq48p/Mountain-Mint-NOBG.png",
@@ -738,7 +738,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771881957850,
-    "updatedAt": "2026-02-23T21:25:57.850Z"
+    "rev": 1771882278975,
+    "updatedAt": "2026-02-23T21:31:18.975Z"
   }
 }
