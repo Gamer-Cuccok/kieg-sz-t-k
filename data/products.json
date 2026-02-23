@@ -539,6 +539,20 @@
       "flavor_hu": "Vapsolo Quads 80k",
       "flavor_en": "Vapsolo Quads 80k",
       "soonEta": ""
+    },
+    {
+      "id": "p_da050892c171f_19c8a7566dc",
+      "categoryId": "tomb",
+      "status": "ok",
+      "stock": 12,
+      "visible": true,
+      "price": null,
+      "image": "https://i.ibb.co/rfdWvLjN/tombola.png",
+      "name_hu": "Tombola",
+      "name_en": "Tombola",
+      "flavor_hu": "Elfbar Raya D3 25K",
+      "flavor_en": "Elfbar Raya D3 25K",
+      "soonEta": ""
     }
   ],
   "popups": [
@@ -592,7 +606,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771849463663,
-    "updatedAt": "2026-02-23T12:24:23.663Z"
+    "rev": 1771849519447,
+    "updatedAt": "2026-02-23T12:25:19.447Z"
   }
 }
