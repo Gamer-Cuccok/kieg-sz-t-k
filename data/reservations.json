@@ -38,5 +38,26 @@
         "unitPriceJD": null
       }
     ]
+  },
+  {
+    "id": "r_mlzp5s36_cjhr2g",
+    "publicCode": "630",
+    "createdAt": 1771882615411,
+    "expiresAt": 1772055415411,
+    "confirmed": false,
+    "items": [
+      {
+        "productId": "p_96e473e02863_19b6a6106ac",
+        "qty": 1,
+        "unitPrice": 5000,
+        "unitPriceJD": 7000
+      },
+      {
+        "productId": "p_d1c0df1b50542_19c7aee39b0",
+        "qty": 1,
+        "unitPrice": 6500,
+        "unitPriceJD": 9500
+      }
+    ]
   }
 ]
