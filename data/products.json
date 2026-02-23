@@ -37,7 +37,7 @@
       "basePrice": 4000,
       "basePriceJD": 6000,
       "visible": true,
-      "visibleJD": false,
+      "visibleJD": true,
       "featuredEnabled": true
     },
     {
@@ -738,7 +738,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771881945267,
-    "updatedAt": "2026-02-23T21:25:45.267Z"
+    "rev": 1771881957850,
+    "updatedAt": "2026-02-23T21:25:57.850Z"
   }
 }
