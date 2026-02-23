@@ -751,5 +751,28 @@
         "unitPrice": 500
       }
     ]
+  },
+  {
+    "id": "s_34e152d1a9dce_19c8b33c508",
+    "date": "2026-02-23",
+    "name": "E. Tamás",
+    "payment": "Vásárláskor TB: 696",
+    "items": [
+      {
+        "productId": "p_b862159bc3f608_19beb0c6380",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_04bcb951d2f2f_19c8a741b4e",
+        "qty": 1,
+        "unitPrice": 500
+      },
+      {
+        "productId": "p_4f4efd0510951_19b6ae36cba",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
