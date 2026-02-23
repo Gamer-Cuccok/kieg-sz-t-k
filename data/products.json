@@ -404,7 +404,7 @@
       "id": "p_4f4efd0510951_19b6ae36cba",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 6,
+      "stock": 5,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/fGx1X0GK/10-MOJITO-MONSTER-MANGO-LADY-KILLER-PINK-LEMONADE-NOBG.png",
@@ -432,7 +432,7 @@
       "id": "p_b862159bc3f608_19beb0c6380",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 6,
+      "stock": 5,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/tWJGc13/MIXED-BERRY-CHERRY-LEMON-STRAWBERRY-KIWI-STRAWBERRY-WATERMELON-BUBBLEGUM-NOBG.png",
@@ -530,7 +530,7 @@
       "id": "p_04bcb951d2f2f_19c8a741b4e",
       "categoryId": "tomb",
       "status": "ok",
-      "stock": 12,
+      "stock": 11,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/rfdWvLjN/tombola.png",
@@ -648,7 +648,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1771861496962,
-    "updatedAt": "2026-02-23T15:44:56.962Z"
+    "rev": 1771861952765,
+    "updatedAt": "2026-02-23T15:52:32.765Z"
   }
 }
