@@ -782,5 +782,23 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_aa784295ab0228_19c9b11bd0e",
+    "date": "2026-02-26",
+    "name": "Szabi",
+    "payment": "Vásárláskor(haverja)",
+    "items": [
+      {
+        "productId": "p_4f4efd0510951_19b6ae36cba",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_03568182a15ac_19c7ae3aa7d",
+        "qty": 2,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
