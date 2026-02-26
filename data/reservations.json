@@ -43,8 +43,10 @@
     "id": "r_mm3i6mlr_qelp03",
     "publicCode": "898",
     "createdAt": 1772112762353,
-    "expiresAt": 1772285562353,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_d1c0df1b50542_19c7aee39b0",
