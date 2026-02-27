@@ -32,5 +32,19 @@
         "unitPriceJD": null
       }
     ]
+  },
+  {
+    "id": "r_mm5094e1_v7ysox",
+    "publicCode": "278",
+    "createdAt": 1772203577977,
+    "expiresAt": 1772376377977,
+    "confirmed": false,
+    "items": [
+      {
+        "productId": "p_f93b7eb924ed1_19b4e156422",
+        "qty": 1,
+        "unitPrice": 5000
+      }
+    ]
   }
 ]
