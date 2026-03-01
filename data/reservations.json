@@ -15,5 +15,19 @@
         "unitPriceJD": null
       }
     ]
+  },
+  {
+    "id": "r_mm7xfwa2_e88ly2",
+    "publicCode": "933",
+    "createdAt": 1772380253738,
+    "expiresAt": 1772553053738,
+    "confirmed": false,
+    "items": [
+      {
+        "productId": "p_d1c0df1b50542_19c7aee39b0",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
