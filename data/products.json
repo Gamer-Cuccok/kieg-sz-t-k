@@ -733,12 +733,28 @@
       "flavor_hu": "Kék Áfonya Ribizli & Szeder Vörös Málna & Sajttorta & Lime Maracuja",
       "flavor_en": "Blueberry Currant & Blackberry Red Raspberry & Cheese Cake & Lime Passiom Fruit",
       "soonEta": ""
+    },
+    {
+      "id": "p_bdf2876c776fe_19cae8d647b",
+      "categoryId": "vapsolo80k",
+      "status": "ok",
+      "stock": 10,
+      "visible": true,
+      "visibleJD": true,
+      "price": null,
+      "priceJD": null,
+      "image": "https://i.ibb.co/Hf8pN7vp/13-APPLE-PEACH-BLUEBERRY-WATERMELON-DRAGON-FRUIT-BANANA-CHERRY-SOLOAPPLE-PEACH-BLUEBERRY-WATERMELON.png",
+      "name_hu": "Vapsolo Quads 80k",
+      "name_en": "Vapsolo Quads 80k",
+      "flavor_hu": "Alma Barack & Kék Áfonya Dinnye & Sárkánygyümölcs Banán Cseresznye & Solo 1#",
+      "flavor_en": "Apple Peach & Blueberry Watermleon & Dragon Fruit Banana Cherry & Solo 1#",
+      "soonEta": ""
     }
   ],
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1772454621991,
-    "updatedAt": "2026-03-02T12:30:21.991Z"
+    "rev": 1772455432501,
+    "updatedAt": "2026-03-02T12:43:52.501Z"
   }
 }
