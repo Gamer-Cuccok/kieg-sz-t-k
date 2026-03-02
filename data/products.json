@@ -701,12 +701,28 @@
       "flavor_hu": "Intenzív Szőlő & Licsi Jég & Kivi Maracuja Guava & Barack Bogyó",
       "flavor_en": "Grape Burst & Lychee Ice & Kiwi Passion Fruit Guava & Peach Berry",
       "soonEta": ""
+    },
+    {
+      "id": "p_dff7056a3eded8_19cae7977fb",
+      "categoryId": "vapsolo80k",
+      "status": "ok",
+      "stock": 10,
+      "visible": true,
+      "visibleJD": true,
+      "price": null,
+      "priceJD": null,
+      "image": "https://i.ibb.co/N6fvn2Mz/15-HAPPY-RANCH-SEX-ON-THE-BEACH-WATERMELON-COCONUT-CHERRY-BERRY.png",
+      "name_hu": "Vapsolo Quads 80k",
+      "name_en": "Vapsolo Quads 80k",
+      "flavor_hu": "Jolly Rancher Cukorka & Sex On The Beach & Dinnye Kókusz & Cseresznye Bogyó",
+      "flavor_en": "Happy Ranch & Sex On The Beach & Watermelon Coconut & Cherry Berry",
+      "soonEta": ""
     }
   ],
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1772453360395,
-    "updatedAt": "2026-03-02T12:09:20.395Z"
+    "rev": 1772454027303,
+    "updatedAt": "2026-03-02T12:20:27.303Z"
   }
 }
