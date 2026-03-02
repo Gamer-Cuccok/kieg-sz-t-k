@@ -685,6 +685,22 @@
       "flavor_hu": "Elfbar Ice King 30k",
       "flavor_en": "Elfbar Ice King 30k",
       "soonEta": ""
+    },
+    {
+      "id": "p_7de60a56fee0d8_19cae6f3ed7",
+      "categoryId": "vapsolo80k",
+      "status": "ok",
+      "stock": 5,
+      "visible": true,
+      "visibleJD": true,
+      "price": null,
+      "priceJD": null,
+      "image": "https://i.ibb.co/sJCnH7nW/3-GRAPE-BURST-LYCHEE-ICE-PEACH-BERRY-KIWI-PASSION-FRUIT-GUAVA-NOBG.png",
+      "name_hu": "Vapsolo Quads 80k",
+      "name_en": "Vapsolo Quads 80k",
+      "flavor_hu": "Intenzív Szőlő & Licsi Jég & Kivi Maracuja Guava & Barack Bogyó",
+      "flavor_en": "Grape Burst & Lychee Ice & Kiwi Passion Fruit Guava & Peach Berry",
+      "soonEta": ""
     }
   ],
   "popups": [
@@ -738,7 +754,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1772452502848,
-    "updatedAt": "2026-03-02T11:55:02.848Z"
+    "rev": 1772453315363,
+    "updatedAt": "2026-03-02T12:08:35.363Z"
   }
 }
