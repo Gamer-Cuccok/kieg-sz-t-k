@@ -763,14 +763,14 @@
       "name_hu": "Vapsolo Quads 80k",
       "name_en": "Vapsolo Quads 80k",
       "flavor_hu": "Mangó Ananász & Kék Málna Cseresznye & Dinnye Cseresznye & Szeder Menta",
-      "flavor_en": "Mango Pineapple & Blue Razz Cherry & Watermelom Cherry & Blackberry Mint",
+      "flavor_en": "Mango Pineapple & Blue Razz Cherry & Watermelon Cherry & Blackberry Mint",
       "soonEta": ""
     }
   ],
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1772455799253,
-    "updatedAt": "2026-03-02T12:49:59.253Z"
+    "rev": 1772455860253,
+    "updatedAt": "2026-03-02T12:51:00.253Z"
   }
 }
