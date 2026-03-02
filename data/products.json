@@ -749,12 +749,28 @@
       "flavor_hu": "Alma Barack & Kék Áfonya Dinnye & Sárkánygyümölcs Banán Cseresznye & Solo 1#",
       "flavor_en": "Apple Peach & Blueberry Watermelon & Dragon Fruit Banana Cherry & Solo 1#",
       "soonEta": ""
+    },
+    {
+      "id": "p_5aaf6d03437c8_19cae96fb2e",
+      "categoryId": "vapsolo80k",
+      "status": "ok",
+      "stock": 10,
+      "visible": true,
+      "visibleJD": true,
+      "price": null,
+      "priceJD": null,
+      "image": "https://i.ibb.co/9mwmwhqh/14-MANGO-PINEAPPLE-BLUE-RAZZ-CHERRY-WATERMELON-CHERRY-BLACKBERRY-MINT.png",
+      "name_hu": "Vapsolo Quads 80k",
+      "name_en": "Vapsolo Quads 80k",
+      "flavor_hu": "Mangó Ananász & Kék Málna Cseresznye & Dinnye Cseresznye & Szeder Menta",
+      "flavor_en": "Mango Pineapple & Blue Razz Cherry & Watermelom Cherry & Blackberry Mint",
+      "soonEta": ""
     }
   ],
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1772455471252,
-    "updatedAt": "2026-03-02T12:44:31.252Z"
+    "rev": 1772455799253,
+    "updatedAt": "2026-03-02T12:49:59.253Z"
   }
 }
