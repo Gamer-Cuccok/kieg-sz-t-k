@@ -839,5 +839,23 @@
         "unitPrice": 0
       }
     ]
+  },
+  {
+    "id": "s_ac4125760978a_19cafb6241f",
+    "date": "2026-03-02",
+    "name": "Niki",
+    "payment": "3 darab maradt neki (vap az a munkatársáé, fizetve -)",
+    "items": [
+      {
+        "productId": "p_bdf2876c776fe_19cae8d647b",
+        "qty": 1,
+        "unitPrice": 0
+      },
+      {
+        "productId": "p_91055a9de76e18_19b5b67c25f",
+        "qty": 1,
+        "unitPrice": 0
+      }
+    ]
   }
 ]
