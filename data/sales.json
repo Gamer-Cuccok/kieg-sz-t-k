@@ -839,5 +839,36 @@
         "unitPrice": 0
       }
     ]
+  },
+  {
+    "id": "s_ab91cdc2c1b1b_19cb512e024",
+    "date": "2026-03-02",
+    "name": "Niki",
+    "payment": "3 darab maradt neki (vap az a munkatársáé, fizetve másnap -)",
+    "items": [
+      {
+        "productId": "p_bdf2876c776fe_19cae8d647b",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_91055a9de76e18_19b5b67c25f",
+        "qty": 1,
+        "unitPrice": 0
+      }
+    ]
+  },
+  {
+    "id": "s_7935e06f79fcd8_19cb514ca5e",
+    "date": "2026-03-03",
+    "name": "B. Zs munk. Zoli",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_7de60a56fee0d8_19cae6f3ed7",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
