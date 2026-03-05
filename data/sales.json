@@ -888,5 +888,18 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_9b1e10c51280b_19cbeac31ed",
+    "date": "2026-03-05",
+    "name": "T. Dani",
+    "payment": "Aznap",
+    "items": [
+      {
+        "productId": "p_bdf2876c776fe_19cae8d647b",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
