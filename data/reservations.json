@@ -20,13 +20,16 @@
     "id": "r_mmf5w63z_sbe5a8",
     "publicCode": "660",
     "createdAt": 1772817713135,
-    "expiresAt": 1772990513135,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_03568182a15ac_19c7ae3aa7d",
         "qty": 1,
-        "unitPrice": 6500
+        "unitPrice": 6500,
+        "unitPriceJD": null
       }
     ]
   }
