@@ -932,5 +932,28 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_0695b20c6ed14_19cc7f44a70",
+    "date": "2026-03-07",
+    "name": "Szabi",
+    "payment": "Vásárláskor (13-mas Ákié)",
+    "items": [
+      {
+        "productId": "p_bdf2876c776fe_19cae8d647b",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_a52ce38bb9b78_19cae8202a0",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_f711f17c5fdd3_19b6a7bed1f",
+        "qty": 1,
+        "unitPrice": 4000
+      }
+    ]
   }
 ]
