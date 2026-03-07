@@ -15,5 +15,24 @@
         "unitPriceJD": null
       }
     ]
+  },
+  {
+    "id": "r_mmg87mot_2k2l0m",
+    "publicCode": "554",
+    "createdAt": 1772882073245,
+    "expiresAt": 1773054873245,
+    "confirmed": false,
+    "items": [
+      {
+        "productId": "p_04bcb951d2f2f_19c8a741b4e",
+        "qty": 1,
+        "unitPrice": 500
+      },
+      {
+        "productId": "p_dff7056a3eded8_19cae7977fb",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
