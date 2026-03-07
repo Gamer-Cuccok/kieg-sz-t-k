@@ -38,34 +38,5 @@
         "unitPriceJD": null
       }
     ]
-  },
-  {
-    "id": "r_mmgnf2g6_gp4en2",
-    "publicCode": "897",
-    "createdAt": 1772907614502,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_dff7056a3eded8_19cae7977fb",
-        "qty": 1,
-        "unitPrice": 6500,
-        "unitPriceJD": null
-      },
-      {
-        "productId": "p_81909e3d929628_19c7af58890",
-        "qty": 1,
-        "unitPrice": 6500,
-        "unitPriceJD": null
-      },
-      {
-        "productId": "p_91055a9de76e18_19b5b67c25f",
-        "qty": 1,
-        "unitPrice": 6000,
-        "unitPriceJD": null
-      }
-    ]
   }
 ]
