@@ -38,19 +38,5 @@
         "unitPriceJD": null
       }
     ]
-  },
-  {
-    "id": "r_mmicbgql_wr5j4x",
-    "publicCode": "762",
-    "createdAt": 1773009902974,
-    "expiresAt": 1773182702974,
-    "confirmed": false,
-    "items": [
-      {
-        "productId": "p_f711f17c5fdd3_19b6a7bed1f",
-        "qty": 1,
-        "unitPrice": 4000
-      }
-    ]
   }
 ]
