@@ -978,5 +978,18 @@
         "unitPrice": 6000
       }
     ]
+  },
+  {
+    "id": "s_228e363df0cf88_19cd39726a3",
+    "date": "2026-03-09",
+    "name": "B. Geri haverja",
+    "payment": "Vásárláskor (Ákié (Geri 1/10) )",
+    "items": [
+      {
+        "productId": "p_dff7056a3eded8_19cae7977fb",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
