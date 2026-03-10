@@ -20,8 +20,10 @@
     "id": "r_mmkl0kr1_phu8d7",
     "publicCode": "219",
     "createdAt": 1773145443853,
-    "expiresAt": 1773318243853,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_91055a9de76e18_19b5b67c25f",
