@@ -753,24 +753,6 @@
     ]
   },
   {
-    "id": "s_452225cfbc7f28_19c8f7889c3",
-    "date": "2026-02-24",
-    "name": "B. Zs munkatársai",
-    "payment": "Hitelre",
-    "items": [
-      {
-        "productId": "p_03568182a15ac_19c7ae3aa7d",
-        "qty": 1,
-        "unitPrice": 0
-      },
-      {
-        "productId": "p_7e90788f76589_19b6adc49b6",
-        "qty": 1,
-        "unitPrice": 0
-      }
-    ]
-  },
-  {
     "id": "s_4fd9f9e6c87a8_19c9a4cca09",
     "date": "2026-02-26",
     "name": "T. Dani",
