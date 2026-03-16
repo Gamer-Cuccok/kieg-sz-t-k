@@ -44,5 +44,24 @@
         "unitPriceJD": null
       }
     ]
+  },
+  {
+    "id": "r_mmtaa86g_gg9t5f",
+    "publicCode": "601",
+    "createdAt": 1773671613928,
+    "expiresAt": 1773844413928,
+    "confirmed": false,
+    "items": [
+      {
+        "productId": "p_03568182a15ac_19c7ae3aa7d",
+        "qty": 3,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_bdf2876c776fe_19cae8d647b",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
