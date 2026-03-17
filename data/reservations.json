@@ -37,13 +37,16 @@
     "id": "r_mmuz0eka_uoh6ym",
     "publicCode": "441",
     "createdAt": 1773773612222,
-    "expiresAt": 1773946412222,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_dff7056a3eded8_19cae7977fb",
         "qty": 3,
-        "unitPrice": 6500
+        "unitPrice": 6500,
+        "unitPriceJD": null
       }
     ]
   }
