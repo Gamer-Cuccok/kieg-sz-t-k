@@ -162,7 +162,7 @@
       "id": "p_ffc645ec0ef398_19b5b5ed5eb",
       "categoryId": "elfraya25",
       "status": "ok",
-      "stock": 8,
+      "stock": 7,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -242,7 +242,7 @@
       "id": "p_d44a935527ac98_19b5b68e535",
       "categoryId": "elfraya25",
       "status": "ok",
-      "stock": 4,
+      "stock": 3,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -786,7 +786,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1773783099288,
-    "updatedAt": "2026-03-17T21:31:39.288Z"
+    "rev": 1773846454973,
+    "updatedAt": "2026-03-18T15:07:34.973Z"
   }
 }
