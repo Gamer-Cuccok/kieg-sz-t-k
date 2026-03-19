@@ -2,6 +2,5 @@
   "owner": "ShadowVapes",
   "repo": "shadowvapes",
   "branch": "main",
-  "reserveApi": "https://nemfontos.adriszabo10.workers.dev",
-  "discordWebhook": "https://discord.com/api/webhooks/1484319966655283202/KhnAnROEKIkUBe1kCVHb4VIRmrg1k5JRzspaXw2pRmM7kQH9ajGOPwo-IEhqYTkUlgD4"
+  "reserveApi": "https://nemfontos.adriszabo10.workers.dev"
 }
