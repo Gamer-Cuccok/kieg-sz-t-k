@@ -1231,54 +1231,5 @@
         "unitPrice": 6500
       }
     ]
-  },
-  {
-    "id": "s_ac9029423d9e68_19d07d1adbe",
-    "date": "2026-03-19",
-    "name": "S. Krisz haverja",
-    "payment": "Vásárláskor (4-es & 12-es ákié)",
-    "items": [
-      {
-        "productId": "p_dff7056a3eded8_19cae7977fb",
-        "qty": 2,
-        "unitPrice": 6500
-      },
-      {
-        "productId": "p_7e90788f76589_19b6adc49b6",
-        "qty": 1,
-        "unitPrice": 6500
-      },
-      {
-        "productId": "p_a52ce38bb9b78_19cae8202a0",
-        "qty": 1,
-        "unitPrice": 6500
-      }
-    ]
-  },
-  {
-    "id": "s_9a4ffd82fd8378_19d07d1c33d",
-    "date": "2026-03-19",
-    "name": "S. Krisz haverja",
-    "payment": "Vásárláskor",
-    "items": [
-      {
-        "productId": "p_f528825b171d1_19b5b6659bb",
-        "qty": 1,
-        "unitPrice": 6000
-      }
-    ]
-  },
-  {
-    "id": "s_2b25fd2f064ff_19d07dd90cd",
-    "date": "2026-03-19",
-    "name": "Saját",
-    "payment": "- dátum nem valid",
-    "items": [
-      {
-        "productId": "p_cd734ed84b46d_19b5bc23e59",
-        "qty": 1,
-        "unitPrice": 0
-      }
-    ]
   }
 ]
