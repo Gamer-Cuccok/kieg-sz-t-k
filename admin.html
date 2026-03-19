@@ -45,8 +45,13 @@
   <!-- MODAL (prompt helyett) -->
   <div class="modal-backdrop" id="modalBg">
     <div class="modal">
-      <h2 id="modalTitle">Modal</h2>
-      <p id="modalSub" class="small-muted"></p>
+      <div class="modal-head">
+        <div class="modal-head-copy">
+          <h2 id="modalTitle">Modal</h2>
+          <p id="modalSub" class="small-muted"></p>
+        </div>
+        <button type="button" class="modal-x" id="modalCloseBtn" aria-label="Bezárás">✕</button>
+      </div>
       <div id="modalBody"></div>
       <div class="row" style="margin-top:14px;" id="modalActions"></div>
     </div>
