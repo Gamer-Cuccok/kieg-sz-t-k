@@ -1200,5 +1200,23 @@
         "unitPrice": 6000
       }
     ]
+  },
+  {
+    "id": "s_41bb974ae315_19d0673143b",
+    "date": "2026-03-19",
+    "name": "E. Tamás haverja",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_ffc645ec0ef398_19b5b5ed5eb",
+        "qty": 1,
+        "unitPrice": 6000
+      },
+      {
+        "productId": "p_7de60a56fee0d8_19cae6f3ed7",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
