@@ -345,10 +345,14 @@ button, input, select{
   flex-direction:column;
   overflow:hidden;
 }
+.modal-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:10px; }
+.modal-head-copy{ min-width:0; }
 #modalBody{ overflow:auto; max-height: 62vh; padding-right: 4px; }
 #modalActions{ flex:0 0 auto; }
 .modal h2{ margin:0 0 6px; }
-.modal p{ margin:0 0 14px; color: var(--muted); }
+.modal p{ margin:0; color: var(--muted); }
+.modal-x{ border:none; background:rgba(255,255,255,.06); color:var(--text); width:42px; height:42px; border-radius:14px; cursor:pointer; font-size:18px; flex:0 0 auto; }
+.modal-x:hover{ background:rgba(255,255,255,.12); }
 .modal .row{ display:flex; gap:10px; flex-wrap:wrap; }
 .modal .row button{
   flex:1;
@@ -533,7 +537,7 @@ button, input, select{
 }
 .popup-modal{
   width: min(900px, 95vw);
-  height: min(700px, 90vh);
+  max-height: min(700px, 90vh);
   background: rgba(15,22,36,.95);
   border: 1px solid rgba(255,255,255,.1);
   border-radius: 22px;
@@ -547,6 +551,9 @@ button, input, select{
   border-bottom: 1px solid rgba(255,255,255,.1);
   flex-shrink: 0;
 }
+.popup-headline{ display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
+.popup-close{ border:none; background:rgba(255,255,255,.08); color:var(--text); width:42px; height:42px; border-radius:14px; cursor:pointer; font-size:18px; flex:0 0 auto; }
+.popup-close:hover{ background:rgba(255,255,255,.14); }
 .popup-title{
   font-size: 22px;
   font-weight: 800;
@@ -558,7 +565,8 @@ button, input, select{
 }
 .popup-content{
   flex: 1;
-  overflow: hidden;
+  overflow: auto;
+  min-height: 0;
   position: relative;
   touch-action: pan-y;
 }
@@ -574,7 +582,7 @@ button, input, select{
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   overflow-y: auto;
 }
 .popup-product-image{
@@ -629,6 +637,7 @@ button, input, select{
   align-items: center;
   gap: 15px;
   flex-shrink: 0;
+  background: rgba(15,22,36,.98);
 }
 .popup-dots{
   display: flex;
@@ -724,9 +733,17 @@ button, input, select{
 @media (max-width: 860px){
   .wrap{ grid-template-columns: 1fr; }
   .sidebar{ height:auto; position:relative; }
-  
+
+  .popup-modal{
+    width:min(96vw, 560px);
+    max-height:92vh;
+  }
   .popup-slide{
-    padding: 20px;
+    padding: 18px 16px 12px;
+  }
+  .popup-product-image{
+    max-width: 280px;
+    margin-bottom: 14px;
   }
   .popup-product-name{
     font-size: 20px;
@@ -736,6 +753,23 @@ button, input, select{
   }
   .popup-product-price{
     font-size: 24px;
+  }
+  .popup-footer{
+    padding: 14px;
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  .popup-buttons{
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr;
+  }
+  .popup-buttons button{
+    width:100%;
+  }
+  .popup-dots{
+    width:100%;
+    order:3;
   }
   .popup-arrow {
     display: none; /* Mobile swipe */
@@ -1174,3 +1208,10 @@ button, input, select{
   background: rgba(0,0,0,.12);
   border: 1px solid rgba(255,255,255,.06);
 }
+
+
+.chart-filters{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+.field.compact{ min-width:150px; display:flex; flex-direction:column; gap:6px; }
+.field.compact span{ font-size:12px; color:var(--muted); }
+.field.compact input, .field.compact select{ min-width:150px; }
+@media (max-width: 860px){ .chart-filters{ width:100%; justify-content:stretch; } .field.compact{ flex:1 1 160px; } }

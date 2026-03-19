@@ -21,7 +21,8 @@
     dirtyProducts: false,
     dirtySales: false,
     saveTimer: null,
-    shas: { products: null, sales: null },
+    shas: { products: null, sales: null, reservations: null },
+    base: { doc: null, sales: [], reservations: [] },
     // hogy a public oldal biztosan megtalálja a RAW forrást (telefonon is)
     forceSourceSync: false,
     clientId: (globalThis.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2)),
@@ -29,6 +30,10 @@
       productsCat: "all",
       salesCat: "all",
       chartCat: "all",
+      chartYear: "",
+      chartMonth: "",
+      chartWeek: "",
+      chartDay: "",
       productsSearch: "",
       salesSearch: ""
     }
@@ -110,8 +115,125 @@
     return `${yyyy}-${mm}-${dd}`;
   }
 
+  function monthISO(date = new Date()){
+    const d = (date instanceof Date) ? date : new Date(date);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+  }
+
+  function weekISO(date = new Date()){
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2,"0")}`;
+  }
+
   function escapeHtml(s){
     return String(s ?? "").replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
+  }
+
+  function deepClone(v){
+    return JSON.parse(JSON.stringify(v ?? null));
+  }
+
+  function stableJson(v){
+    return JSON.stringify(v ?? null);
+  }
+
+  function snapshotBaseState(){
+    state.base.doc = deepClone(state.doc);
+    state.base.sales = deepClone(state.sales);
+    state.base.reservations = deepClone(state.reservations);
+  }
+
+  function buildMapById(arr){
+    const map = new Map();
+    for(const item of (Array.isArray(arr) ? arr : [])){
+      if(item && item.id) map.set(String(item.id), item);
+    }
+    return map;
+  }
+
+  function mergeArrayById(baseArr, localArr, remoteArr){
+    const baseMap = buildMapById(baseArr);
+    const localMap = buildMapById(localArr);
+
+    const changedIds = new Set();
+    const unionIds = new Set([...baseMap.keys(), ...localMap.keys()]);
+    for(const id of unionIds){
+      if(stableJson(baseMap.get(id) || null) !== stableJson(localMap.get(id) || null)){
+        changedIds.add(id);
+      }
+    }
+
+    const out = [];
+    const seen = new Set();
+
+    for(const item of (Array.isArray(remoteArr) ? remoteArr : [])){
+      const id = String(item && item.id || "");
+      if(!id || seen.has(id)) continue;
+      seen.add(id);
+
+      if(changedIds.has(id)){
+        const localItem = localMap.get(id);
+        if(localItem) out.push(deepClone(localItem));
+        continue;
+      }
+      out.push(deepClone(item));
+    }
+
+    for(const item of (Array.isArray(localArr) ? localArr : [])){
+      const id = String(item && item.id || "");
+      if(!id || seen.has(id)) continue;
+      if(changedIds.has(id)) out.push(deepClone(item));
+      seen.add(id);
+    }
+
+    return out;
+  }
+
+  function mergePlainObjectKeys(baseObj, localObj, remoteObj, ignoreKeys){
+    const ignored = new Set(ignoreKeys || []);
+    const merged = { ...(remoteObj || {}) };
+    const keys = new Set([
+      ...Object.keys(baseObj || {}),
+      ...Object.keys(localObj || {}),
+      ...Object.keys(remoteObj || {})
+    ]);
+
+    for(const key of keys){
+      if(ignored.has(key)) continue;
+      const baseVal = (baseObj || {})[key];
+      const localVal = (localObj || {})[key];
+      if(stableJson(baseVal) !== stableJson(localVal)){
+        if(localVal === undefined){
+          delete merged[key];
+        }else{
+          merged[key] = deepClone(localVal);
+        }
+      }
+    }
+    return merged;
+  }
+
+  function mergeProductsDoc(baseDoc, localDoc, remoteDoc){
+    const base = (baseDoc && typeof baseDoc === "object") ? baseDoc : { categories: [], products: [], popups: [] };
+    const local = (localDoc && typeof localDoc === "object") ? localDoc : { categories: [], products: [], popups: [] };
+    const remote = (remoteDoc && typeof remoteDoc === "object") ? remoteDoc : { categories: [], products: [], popups: [] };
+
+    const merged = mergePlainObjectKeys(base, local, remote, ["categories", "products", "popups", "_meta"]);
+    merged.categories = mergeArrayById(base.categories || [], local.categories || [], remote.categories || []);
+    merged.products = mergeArrayById(base.products || [], local.products || [], remote.products || []);
+    merged.popups = mergeArrayById(base.popups || [], local.popups || [], remote.popups || []);
+    merged._meta = deepClone(local._meta || remote._meta || {});
+    return merged;
+  }
+
+  function isConflictError(err){
+    const msg = String(err?.message || "");
+    const status = Number(err?.status || 0);
+    return status === 409 || status === 422 || /sha/i.test(msg) || msg.includes("does not match") || msg.includes("expected");
   }
 
   /* ---------- Cross-tab save lock (ugyanazon böngészőben) ---------- */
@@ -232,6 +354,11 @@
       updatedAt: Number(pp.updatedAt || 0) || 0
     })).filter(pp => pp.id);
 
+    if(!state.filters.chartYear) state.filters.chartYear = String(new Date().getFullYear());
+    if(!state.filters.chartMonth) state.filters.chartMonth = monthISO(new Date());
+    if(!state.filters.chartWeek) state.filters.chartWeek = weekISO(new Date());
+    if(!state.filters.chartDay) state.filters.chartDay = todayISO();
+
     // Sales normalize (kompatibilis a régi formátummal is)
 state.sales = state.sales.map(s => {
   const legacyPid = s.productId || s.pid || s.product || "";
@@ -260,6 +387,15 @@ state.sales = state.sales.map(s => {
 }).filter(s => s.id);
   }
 
+
+  function normalizeSalesData(arr){
+    const prev = state.sales;
+    state.sales = Array.isArray(arr) ? deepClone(arr) : [];
+    normalizeDoc();
+    const out = deepClone(state.sales);
+    state.sales = prev;
+    return out;
+  }
 
   function normalizeReservations(list){
     if(!Array.isArray(list)) return [];
@@ -417,6 +553,7 @@ state.sales = state.sales.map(s => {
         normalizeDoc();
         state.loaded = true;
         state.forceSourceSync = true;
+        snapshotBaseState();
 
         return { ok:true };
       }catch(e){
@@ -445,6 +582,55 @@ state.sales = state.sales.map(s => {
 
     setSaveStatus("ok","Kész");
     renderAll();
+  }
+
+  async function saveJsonFileWithAutoMerge(opts){
+    const cfg = opts.cfg;
+    const normalizeValue = typeof opts.normalizeValue === "function" ? opts.normalizeValue : (v => v);
+    const mergeValue = typeof opts.mergeValue === "function" ? opts.mergeValue : ((_base, local) => local);
+
+    const doPut = async (value, sha) => {
+      return await ShadowGH.putFile({
+        token: cfg.token,
+        owner: cfg.owner,
+        repo: cfg.repo,
+        branch: cfg.branch,
+        path: opts.path,
+        message: opts.message || `Update ${opts.path}`,
+        content: JSON.stringify(value, null, 2),
+        sha
+      });
+    };
+
+    const localValue = normalizeValue(deepClone(opts.localValue));
+
+    try{
+      const res = await doPut(localValue, opts.baseSha || null);
+      return { value: localValue, sha: res?.content?.sha || opts.baseSha || null, merged: false };
+    }catch(err){
+      if(!isConflictError(err)) throw err;
+
+      let remoteSha = null;
+      let remoteValue = deepClone(opts.defaultValue);
+
+      try{
+        const latest = await ShadowGH.getFile({
+          token: cfg.token,
+          owner: cfg.owner,
+          repo: cfg.repo,
+          branch: cfg.branch,
+          path: opts.path
+        });
+        remoteSha = latest.sha || null;
+        remoteValue = normalizeValue(JSON.parse(latest.content || JSON.stringify(opts.defaultValue)));
+      }catch(fetchErr){
+        if(Number(fetchErr?.status || 0) !== 404) throw err;
+      }
+
+      const mergedValue = normalizeValue(mergeValue(deepClone(opts.baseValue), localValue, remoteValue));
+      const mergedRes = await doPut(mergedValue, remoteSha);
+      return { value: mergedValue, sha: mergedRes?.content?.sha || remoteSha || null, merged: true };
+    }
   }
 
   async function saveDataNow(){
@@ -501,119 +687,108 @@ state.sales = state.sales.map(s => {
       };
     }
 
-    const productsText = JSON.stringify(state.doc, null, 2);
-    const salesText = JSON.stringify(state.sales, null, 2);
-    const reservationsText = JSON.stringify(state.reservations, null, 2);
+    let ok = false;
+    const wantProducts = !!state.dirtyProducts;
+    const wantSales = !!state.dirtySales;
+    const wantReservations = !!state.dirtyReservations;
 
-    
-let ok = false;
-const wantProducts = !!state.dirtyProducts;
-const wantSales = !!state.dirtySales;
-const wantReservations = !!state.dirtyReservations;
-
-try{
-  // SHA csak akkor kell, ha még nincs meg (a putFileSafe úgyis frissít konflikt esetén)
-  if(wantProducts && !state.shas.products){
-    // refresh sha, ha nincs
-    const pOld = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path: "data/products.json" });
-    state.shas.products = pOld.sha;
-  }
-
-  if(wantSales && !state.shas.sales){
     try{
-      const sOld = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path: "data/sales.json" });
-      state.shas.sales = sOld.sha;
-    }catch(e){
-      if(Number(e?.status || 0) === 404) state.shas.sales = null;
-      else throw e;
-    }
-  }
+      const tasks = [];
 
-  if(wantReservations && !state.shas.reservations){
-    try{
-      const rOld = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path: "data/reservations.json" });
-      state.shas.reservations = rOld.sha;
-    }catch(e){
-      if(Number(e?.status || 0) === 404) state.shas.reservations = null;
-      else throw e;
-    }
-  }
+      if(wantProducts){
+        tasks.push(
+          saveJsonFileWithAutoMerge({
+            cfg,
+            path: "data/products.json",
+            message: "Update products.json",
+            baseSha: state.shas.products,
+            localValue: state.doc,
+            baseValue: state.base.doc,
+            defaultValue: { categories: [], products: [], popups: [] },
+            normalizeValue: (value) => {
+              const prevDoc = state.doc;
+              state.doc = deepClone(value);
+              normalizeDoc();
+              const out = deepClone(state.doc);
+              state.doc = prevDoc;
+              return out;
+            },
+            mergeValue: (baseValue, localValue, remoteValue) => mergeProductsDoc(baseValue, localValue, remoteValue)
+          }).then((res) => {
+            state.doc = res.value;
+            state.shas.products = res.sha;
+          })
+        );
+      }
 
-  const tasks = [];
+      if(wantSales){
+        tasks.push(
+          saveJsonFileWithAutoMerge({
+            cfg,
+            path: "data/sales.json",
+            message: "Update sales.json",
+            baseSha: state.shas.sales,
+            localValue: state.sales,
+            baseValue: state.base.sales,
+            defaultValue: [],
+            normalizeValue: (value) => normalizeSalesData(value),
+            mergeValue: (baseValue, localValue, remoteValue) => mergeArrayById(baseValue, localValue, remoteValue)
+          }).then((res) => {
+            state.sales = res.value;
+            state.shas.sales = res.sha;
+          })
+        );
+      }
 
-  if(wantProducts){
-    tasks.push(
-      ShadowGH.putFileSafe({
-        token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
-        path: "data/products.json",
-        message: "Update products.json",
-        content: productsText,
-        sha: state.shas.products
-      }).then((pRes) => {
-        state.shas.products = pRes?.content?.sha || state.shas.products;
-      })
-    );
-  }
+      if(wantReservations){
+        tasks.push(
+          saveJsonFileWithAutoMerge({
+            cfg,
+            path: "data/reservations.json",
+            message: "Update reservations.json",
+            baseSha: state.shas.reservations,
+            localValue: state.reservations,
+            baseValue: state.base.reservations,
+            defaultValue: [],
+            normalizeValue: (value) => normalizeReservations(value),
+            mergeValue: (baseValue, localValue, remoteValue) => mergeArrayById(baseValue, localValue, remoteValue)
+          }).then((res) => {
+            state.reservations = res.value;
+            state.shas.reservations = res.sha;
+          })
+        );
+      }
 
-  if(wantSales){
-    tasks.push(
-      ShadowGH.putFileSafe({
-        token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
-        path: "data/sales.json",
-        message: "Update sales.json",
-        content: salesText,
-        sha: state.shas.sales
-      }).then((sRes) => {
-        state.shas.sales = sRes?.content?.sha || state.shas.sales;
-      })
-    );
-  }
+      // ✅ sv_source.json (custom domain + telefon): a public oldal ebből találja meg a RAW forrást
+      try{
+        const srcObj = { owner: cfg.owner, repo: cfg.repo, branch: cfg.branch };
+        if(cfg.resApi) srcObj.reserveApi = cfg.resApi;
+        const srcText = JSON.stringify(srcObj, null, 2);
+        const prev = localStorage.getItem("sv_source_json") || "";
+        if(state.forceSourceSync || prev !== srcText){
+          state.forceSourceSync = false;
+          try{ localStorage.setItem("sv_source_json", srcText); }catch{}
+          tasks.push(
+            ShadowGH.putFileSafe({
+              token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
+              path: "data/sv_source.json",
+              message: "Update sv_source.json",
+              content: srcText
+            })
+          );
+        }
+      }catch{}
 
-if(wantReservations){
-    tasks.push(
-      ShadowGH.putFileSafe({
-        token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
-        path: "data/reservations.json",
-        message: "Update reservations.json",
-        content: reservationsText,
-        sha: state.shas.reservations
-      }).then((rRes) => {
-        state.shas.reservations = rRes?.content?.sha || state.shas.reservations;
-      })
-    );
-  }
+      // ha nincs mit menteni, ne üssük a GH-t
+      if(!tasks.length){
+        ok = true;
+        setSaveStatus("ok","Nincs változás");
+        return;
+      }
 
-
-
-  // ✅ sv_source.json (custom domain + telefon): a public oldal ebből találja meg a RAW forrást
-  try{
-    const srcObj = { owner: cfg.owner, repo: cfg.repo, branch: cfg.branch };
-    if(cfg.resApi) srcObj.reserveApi = cfg.resApi;
-    const srcText = JSON.stringify(srcObj, null, 2);
-    const prev = localStorage.getItem("sv_source_json") || "";
-    if(state.forceSourceSync || prev !== srcText){
-      state.forceSourceSync = false;
-      try{ localStorage.setItem("sv_source_json", srcText); }catch{}
-      tasks.push(
-        ShadowGH.putFileSafe({
-          token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
-          path: "data/sv_source.json",
-          message: "Update sv_source.json",
-          content: srcText
-        })
-      );
-    }
-  }catch{}
-
-  // ha nincs mit menteni, ne üssük a GH-t
-  if(!tasks.length){
-    ok = true;
-    setSaveStatus("ok","Nincs változás");
-    return;
-  }
-
-  await Promise.all(tasks);
-  ok = true;
+      await Promise.all(tasks);
+      snapshotBaseState();
+      ok = true;
 
   // ✅ azonnali update a katalógus tabnak (ha nyitva van ugyanabban a böngészőben)
   try{
@@ -665,7 +840,7 @@ function markDirty(flags){
     if(state.saveTimer) clearTimeout(state.saveTimer);
     setSaveStatus("busy","Változás…");
     // ✅ MENTÉS GYORSÍTÁS: növelt alapérték 1000 ms
-    const ms = Math.max(200, Math.min(2000, Number(localStorage.getItem("sv_autosave_ms") || 1000)));
+    const ms = Math.max(200, Math.min(2000, Number(localStorage.getItem("sv_autosave_ms") || 350)));
     state.saveTimer = setTimeout(() => {
       saveDataNow();
     }, ms);
@@ -712,11 +887,11 @@ function markDirty(flags){
         <div class="field third">
           <label>Auto-mentés késleltetés</label>
           <select id="cfgAutosave">
-            <option value="350">350 ms (gyors)</option>
+            <option value="350" selected>350 ms (gyors alap)</option>
             <option value="550">550 ms</option>
             <option value="650">650 ms</option>
             <option value="850">850 ms</option>
-            <option value="1000" selected>1000 ms (alap)</option>
+            <option value="1000">1000 ms</option>
           </select>
         </div>
         <div class="field full">
@@ -774,7 +949,7 @@ function markDirty(flags){
     try{
       const sel = $("#cfgAutosave");
       if(sel){
-        const cur = Number(localStorage.getItem("sv_autosave_ms") || 1000);
+        const cur = Number(localStorage.getItem("sv_autosave_ms") || 350);
         sel.value = String(cur);
         sel.onchange = () => {
           const ms = Math.max(200, Math.min(2000, Number(sel.value || 1000)));
@@ -1199,6 +1374,7 @@ function renderProducts(){
           </div>
           <div style="display:flex;gap:10px;align-items:center;">
             <button class="ghost" data-view="${escapeHtml(s.id)}">Megnéz</button>
+            <button class="ghost" data-editsale="${escapeHtml(s.id)}">Szerk</button>
             <button class="danger" data-delsale="${escapeHtml(s.id)}">Töröl (rollback)</button>
           </div>
         </div>
@@ -1228,6 +1404,9 @@ function renderProducts(){
 
     $("#panelSales").querySelectorAll("button[data-delsale]").forEach(b => {
       b.onclick = () => deleteSale(b.dataset.delsale);
+    });
+    $("#panelSales").querySelectorAll("button[data-editsale]").forEach(b => {
+      b.onclick = () => editSale(b.dataset.editsale);
     });
     $("#panelSales").querySelectorAll("button[data-view]").forEach(b => {
       b.onclick = () => viewSale(b.dataset.view);
@@ -1343,11 +1522,12 @@ function openProductPicker(opts = {}){
 }
 
   function openSaleModal(pre){
+    const editingSale = (pre && pre.id) ? state.sales.find(x => String(x.id) === String(pre.id)) : null;
     const preDate = (pre && pre.date) ? String(pre.date) : todayISO();
     const preName = (pre && pre.name) ? String(pre.name) : "";
     const prePay  = (pre && pre.payment) ? String(pre.payment) : "";
     const preItems = (pre && Array.isArray(pre.items)) ? pre.items : [];
-    const title = (pre && pre.title) ? String(pre.title) : "Új eladás";
+    const title = (pre && pre.title) ? String(pre.title) : (editingSale ? "Eladás szerkesztése" : "Új eladás");
 
     const body = document.createElement("div");
     body.innerHTML = `
@@ -1367,73 +1547,72 @@ function openProductPicker(opts = {}){
 
     const itemsRoot = body.querySelector("#s_items");
 
+    const addItemRow = (pref = {}) => {
+      const row = document.createElement("div");
+      row.className = "rowline table";
+      row.innerHTML = `
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;">
+          <img class="it-thumb" alt="" />
+          <button type="button" class="it-pick-btn it_pick">Válassz terméket…</button>
+          <input type="hidden" class="it_prod" value="">
+          <input class="it_qty" type="number" min="1" value="1" style="width:110px;">
+          <input class="it_price" type="number" min="0" value="0" style="width:150px;">
+          <button class="danger it_del" type="button">Töröl</button>
+        </div>
+      `;
 
-const addItemRow = (pref = {}) => {
-  const row = document.createElement("div");
-  row.className = "rowline table";
-  row.innerHTML = `
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;">
-      <img class="it-thumb" alt="" />
-      <button type="button" class="it-pick-btn it_pick">Válassz terméket…</button>
-      <input type="hidden" class="it_prod" value="">
-      <input class="it_qty" type="number" min="1" value="1" style="width:110px;">
-      <input class="it_price" type="number" min="0" value="0" style="width:150px;">
-      <button class="danger it_del" type="button">Töröl</button>
-    </div>
-  `;
+      const pidInp = row.querySelector(".it_prod");
+      const pickBtn = row.querySelector(".it_pick");
+      const qtyInp = row.querySelector(".it_qty");
+      const priceInp = row.querySelector(".it_price");
+      const thumb = row.querySelector(".it-thumb");
 
-  const pidInp = row.querySelector(".it_prod");
-  const pickBtn = row.querySelector(".it_pick");
-  const qtyInp = row.querySelector(".it_qty");
-  const priceInp = row.querySelector(".it_price");
-  const thumb = row.querySelector(".it-thumb");
+      const syncThumb = (p) => {
+        const img = p && (p.image || "").trim();
+        if(!thumb) return;
+        if(img){
+          thumb.src = img;
+          thumb.style.visibility = "visible";
+        }else{
+          thumb.removeAttribute("src");
+          thumb.style.visibility = "hidden";
+        }
+      };
 
-  const syncThumb = (p) => {
-    const img = p && (p.image || "").trim();
-    if(!thumb) return;
-    if(img){
-      thumb.src = img;
-      thumb.style.visibility = "visible";
-    }else{
-      thumb.removeAttribute("src");
-      thumb.style.visibility = "hidden";
-    }
-  };
+      const applyPid = (pid, setPrice = true) => {
+        pidInp.value = String(pid || "");
+        const p = prodById(pidInp.value);
+        pickBtn.textContent = p ? prodLabel(p) : "Válassz terméket…";
+        if(setPrice){
+          priceInp.value = String(p ? effectivePrice(p) : 0);
+        }
+        syncThumb(p);
+      };
 
-  const applyPid = (pid, setPrice = true) => {
-    pidInp.value = String(pid || "");
-    const p = prodById(pidInp.value);
-    pickBtn.textContent = p ? prodLabel(p) : "Válassz terméket…";
-    if(setPrice){
-      priceInp.value = String(p ? effectivePrice(p) : 0);
-    }
-    syncThumb(p);
-  };
+      pickBtn.onclick = async () => {
+        const pid = await openProductPicker({ title: "Válassz terméket" });
+        if(pid) applyPid(pid, true);
+      };
 
-  pickBtn.onclick = async () => {
-    const pid = await openProductPicker({ title: "Válassz terméket" });
-    if(pid) applyPid(pid, true);
-  };
+      row.querySelector(".it_del").onclick = () => row.remove();
 
-  row.querySelector(".it_del").onclick = () => row.remove();
+      if(pref && pref.productId){
+        applyPid(pref.productId, false);
+        qtyInp.value = String(Math.max(1, Number(pref.qty || 1) || 1));
+        const p = prodById(pidInp.value);
+        if(pref.unitPrice !== undefined && pref.unitPrice !== null && String(pref.unitPrice) !== ""){
+          priceInp.value = String(Math.max(0, Number(pref.unitPrice) || 0));
+        }else{
+          priceInp.value = String(p ? effectivePrice(p) : 0);
+        }
+        syncThumb(p);
+      }else{
+        applyPid("", true);
+        priceInp.value = "0";
+      }
 
-  if(pref && pref.productId){
-    applyPid(pref.productId, false);
-    qtyInp.value = String(Math.max(1, Number(pref.qty || 1) || 1));
-    const p = prodById(pidInp.value);
-    if(pref.unitPrice !== undefined && pref.unitPrice !== null && String(pref.unitPrice) !== ""){
-      priceInp.value = String(Math.max(0, Number(pref.unitPrice) || 0));
-    }else{
-      priceInp.value = String(p ? effectivePrice(p) : 0);
-    }
-    syncThumb(p);
-  }else{
-    applyPid("", true);
-    priceInp.value = "0";
-  }
-
-  itemsRoot.appendChild(row);
-};
+      itemsRoot.appendChild(row);
+    };
 
     if(preItems && preItems.length){
       for(const it of preItems) addItemRow(it);
@@ -1445,7 +1624,7 @@ const addItemRow = (pref = {}) => {
 
     openModal(title, "Név + dátum + mód + több termék", body, [
       { label:"Mégse", kind:"ghost", onClick: closeModal },
-      { label:"Mentés", kind:"primary", onClick: () => {
+      { label: editingSale ? "Mentés" : "Rögzítés", kind:"primary", onClick: () => {
         const date = ((document.querySelector('#s_date')?.value)||"").trim();
         const name = ((document.querySelector('#s_name')?.value)||"").trim();
         const payment = ((document.querySelector('#s_pay')?.value)||"").trim();
@@ -1462,26 +1641,56 @@ const addItemRow = (pref = {}) => {
         }
         if(!items.length) return;
 
+        const oldItems = Array.isArray(editingSale?.items) ? editingSale.items : [];
+        const oldQtyMap = new Map();
+        const newQtyMap = new Map();
+
+        for(const it of oldItems){
+          oldQtyMap.set(String(it.productId), (oldQtyMap.get(String(it.productId)) || 0) + Number(it.qty || 0));
+        }
         for(const it of items){
-          const p = prodById(it.productId);
+          newQtyMap.set(String(it.productId), (newQtyMap.get(String(it.productId)) || 0) + Number(it.qty || 0));
+        }
+
+        const touched = new Set([...oldQtyMap.keys(), ...newQtyMap.keys()]);
+        for(const pid of touched){
+          const p = prodById(pid);
           if(!p) return;
           if(p.status === 'soon') return;
-          if(p.stock < it.qty) return;
+          const delta = Number(newQtyMap.get(pid) || 0) - Number(oldQtyMap.get(pid) || 0);
+          if(delta > 0 && Number(p.stock || 0) < delta){
+            alert('Nincs elég raktárkészlet ehhez a módosításhoz.');
+            return;
+          }
         }
 
-        for(const it of items){
-          const p = prodById(it.productId);
-          p.stock = Math.max(0, p.stock - it.qty);
-          if(p.stock <= 0) p.status = 'out';
+        for(const pid of touched){
+          const p = prodById(pid);
+          if(!p) continue;
+          const delta = Number(newQtyMap.get(pid) || 0) - Number(oldQtyMap.get(pid) || 0);
+          p.stock = Math.max(0, Number(p.stock || 0) - delta);
+          if(p.stock <= 0){
+            p.stock = 0;
+            if(p.status !== "soon") p.status = "out";
+          }else if(p.status === "out"){
+            p.status = "ok";
+          }
         }
 
-        state.sales.push({
-          id: "s_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16),
-          date,
-          name,
-          payment,
-          items
-        });
+        if(editingSale){
+          editingSale.date = date;
+          editingSale.name = name;
+          editingSale.payment = payment;
+          editingSale.items = items;
+        }else{
+          state.sales.push({
+            id: "s_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16),
+            date,
+            name,
+            payment,
+            items
+          });
+        }
 
         if(pre && pre.fromReservationId){
           state.reservations = (state.reservations || []).filter(x => String(x.id) !== String(pre.fromReservationId));
@@ -1495,6 +1704,18 @@ const addItemRow = (pref = {}) => {
     ]);
   }
 
+  function editSale(id){
+    const s = state.sales.find(x => String(x.id) === String(id));
+    if(!s) return;
+    openSaleModal({
+      id: s.id,
+      title: "Eladás szerkesztése",
+      date: s.date,
+      name: s.name,
+      payment: s.payment,
+      items: deepClone(s.items || [])
+    });
+  }
 
   function viewSale(id){
     const s = state.sales.find(x => x.id === id);
@@ -1824,103 +2045,64 @@ function deleteSale(id){
   }
 
   function renderChartPanel(){
-  const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];
+    const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];
+    const years = [...new Set((state.sales || []).map(s => String(s.date || "").slice(0,4)).filter(x => /^\d{4}$/.test(x)))].sort();
+    const currentYear = String(new Date().getFullYear());
+    const chartYear = state.filters.chartYear || (years.includes(currentYear) ? currentYear : (years[years.length - 1] || currentYear));
+    const chartMonth = state.filters.chartMonth || monthISO(new Date());
+    const chartWeek = state.filters.chartWeek || weekISO(new Date());
+    const chartDay = state.filters.chartDay || todayISO();
 
-  $("#panelChart").innerHTML = `
-    <div class="actions table" style="align-items:center;justify-content:space-between;gap:12px;">
-      <div class="small-muted">Bevétel diagrammok (eladások alapján)</div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
-        <div class="small-muted">Kategória:</div>
-        <select id="chartCat">
-          ${cats.map(c => `<option value="${escapeHtml(c.id)}"${c.id===state.filters.chartCat?" selected":""}>${escapeHtml(c.label)}</option>`).join("")}
-        </select>
-      </div>
-    </div>
+    state.filters.chartYear = chartYear;
+    state.filters.chartMonth = chartMonth;
+    state.filters.chartWeek = chartWeek;
+    state.filters.chartDay = chartDay;
 
-    <div class="kpi" style="margin-top:10px;">
-      <div class="box" style="min-width:170px;">
-        <div class="t">Összesen</div>
-        <div class="v" id="kpi_all">0 Ft</div>
-      </div>
-      <div class="box" style="min-width:170px;">
-        <div class="t">Év</div>
-        <div class="v" id="kpi_year">0 Ft</div>
-      </div>
-      <div class="box" style="min-width:170px;">
-        <div class="t">Hónap</div>
-        <div class="v" id="kpi_month">0 Ft</div>
-      </div>
-      <div class="box" style="min-width:170px;">
-        <div class="t">Hét</div>
-        <div class="v" id="kpi_week">0 Ft</div>
-      </div>
-      <div class="box" style="min-width:170px;">
-        <div class="t">Ma</div>
-        <div class="v" id="kpi_day">0 Ft</div>
-      </div>
-    </div>
-
-    <div class="chart-card">
-      <div class="chart-head">
+    $("#panelChart").innerHTML = `
+      <div class="actions table chart-toolbar" style="align-items:flex-end;justify-content:space-between;gap:12px;">
         <div>
-          <div class="chart-title">Összesen</div>
-          <div class="small-muted">Havi bontás (teljes időszak)</div>
+          <div style="font-weight:900;">Bevétel diagramok</div>
+          <div class="small-muted">Év = jan. 1 – dec. 31., hónap = 1. naptól utolsó napig, hét = hétfő – vasárnap, nap = 00:00 – 23:59.</div>
+        </div>
+        <div class="chart-filters">
+          <label class="field compact"><span>Kategória</span><select id="chartCat">${cats.map(c => `<option value="${escapeHtml(c.id)}"${c.id===state.filters.chartCat?" selected":""}>${escapeHtml(c.label)}</option>`).join("")}</select></label>
+          <label class="field compact"><span>Év</span><select id="chartYear">${[...new Set([...years, currentYear])].sort().map(y => `<option value="${escapeHtml(y)}"${y===chartYear?" selected":""}>${escapeHtml(y)}</option>`).join("")}</select></label>
+          <label class="field compact"><span>Hónap</span><input id="chartMonth" type="month" value="${escapeHtml(chartMonth)}"></label>
+          <label class="field compact"><span>Hét</span><input id="chartWeek" type="week" value="${escapeHtml(chartWeek)}"></label>
+          <label class="field compact"><span>Nap</span><input id="chartDay" type="date" value="${escapeHtml(chartDay)}"></label>
         </div>
       </div>
-      <canvas id="revAll" height="220"></canvas>
-    </div>
 
-    <div class="chart-card">
-      <div class="chart-head">
-        <div>
-          <div class="chart-title">Évi</div>
-          <div class="small-muted">Havi bontás (idén)</div>
-        </div>
+      <div class="kpi chart-kpis" style="margin-top:10px;">
+        <div class="box" style="min-width:170px;"><div class="t">Összesen</div><div class="v" id="kpi_all">0 Ft</div></div>
+        <div class="box" style="min-width:170px;"><div class="t">Kiválasztott év</div><div class="v" id="kpi_year">0 Ft</div></div>
+        <div class="box" style="min-width:170px;"><div class="t">Kiválasztott hónap</div><div class="v" id="kpi_month">0 Ft</div></div>
+        <div class="box" style="min-width:170px;"><div class="t">Kiválasztott hét</div><div class="v" id="kpi_week">0 Ft</div></div>
+        <div class="box" style="min-width:170px;"><div class="t">Kiválasztott nap</div><div class="v" id="kpi_day">0 Ft</div></div>
       </div>
-      <canvas id="revYear" height="220"></canvas>
-    </div>
 
-    <div class="chart-card">
-      <div class="chart-head">
-        <div>
-          <div class="chart-title">Havi</div>
-          <div class="small-muted">Napi bontás (ebben a hónapban)</div>
-        </div>
-      </div>
-      <canvas id="revMonth" height="220"></canvas>
-    </div>
+      <div class="chart-card"><div class="chart-head"><div><div class="chart-title">Összesen</div><div class="small-muted">Havi bontás a teljes időszakra</div></div></div><canvas id="revAll" height="220"></canvas></div>
+      <div class="chart-card"><div class="chart-head"><div><div class="chart-title">Éves bontás</div><div class="small-muted" id="chartYearSub">A kiválasztott év január 1-től december 31-ig</div></div></div><canvas id="revYear" height="220"></canvas></div>
+      <div class="chart-card"><div class="chart-head"><div><div class="chart-title">Havi bontás</div><div class="small-muted" id="chartMonthSub">A kiválasztott hónap teljes napbontása</div></div></div><canvas id="revMonth" height="220"></canvas></div>
+      <div class="chart-card"><div class="chart-head"><div><div class="chart-title">Heti bontás</div><div class="small-muted" id="chartWeekSub">Hétfőtől vasárnapig</div></div></div><canvas id="revWeek" height="220"></canvas></div>
+      <div class="chart-card"><div class="chart-head"><div><div class="chart-title">Napi bevétel</div><div class="small-muted" id="chartDaySub">A kiválasztott nap 00:00 és 23:59 között</div></div></div><canvas id="revDay" height="220"></canvas></div>
+    `;
 
-    <div class="chart-card">
-      <div class="chart-head">
-        <div>
-          <div class="chart-title">Heti</div>
-          <div class="small-muted">Napi bontás (utolsó 7 nap)</div>
-        </div>
-      </div>
-      <canvas id="revWeek" height="220"></canvas>
-    </div>
+    ["chartCat","chartYear","chartMonth","chartWeek","chartDay"].forEach((id) => {
+      const el = $("#" + id);
+      if(!el) return;
+      el.onchange = () => {
+        state.filters.chartCat = $("#chartCat").value;
+        state.filters.chartYear = $("#chartYear").value;
+        state.filters.chartMonth = $("#chartMonth").value;
+        state.filters.chartWeek = $("#chartWeek").value;
+        state.filters.chartDay = $("#chartDay").value;
+        drawChart();
+      };
+    });
 
-    <div class="chart-card">
-      <div class="chart-head">
-        <div>
-          <div class="chart-title">Napi</div>
-          <div class="small-muted">Ma + tegnap</div>
-        </div>
-      </div>
-      <canvas id="revDay" height="220"></canvas>
-    </div>
-  `;
-
-  $("#chartCat").onchange = () => {
-    state.filters.chartCat = $("#chartCat").value;
     drawChart();
-  };
-
-  drawChart();
-}
-
-
-
+  }
 
   /* ---------- Popups (Új termékek) ---------- */
   function renderPopups(){
@@ -2138,50 +2320,63 @@ function drawChart(){
 
   const css = getComputedStyle(document.documentElement);
   const accent = (css.getPropertyValue("--brand2") || "#4aa3ff").trim();
+  const accent2 = (css.getPropertyValue("--brand") || "#7c5cff").trim();
   const grid = "rgba(255,255,255,.08)";
-  const text = "rgba(255,255,255,.82)";
-  const muted = "rgba(255,255,255,.55)";
+  const text = "rgba(255,255,255,.86)";
+  const muted = "rgba(255,255,255,.58)";
 
   const fmtFt = (n) => `${Math.round(n).toLocaleString("hu-HU")} Ft`;
+  const fmtMonthLabel = (isoMonth) => { const [y,m] = String(isoMonth || "").split("-"); return (!y || !m) ? isoMonth : `${y}.${m}.`; };
+  const fmtDayLabel = (isoDate) => { const [y,m,d] = String(isoDate || "").split("-"); return (!y || !m || !d) ? isoDate : `${m}.${d}.`; };
+  const weekdayHu = ["V","H","K","Sze","Cs","P","Szo"];
 
-  const iso = (d) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,"0");
-    const da = String(d.getDate()).padStart(2,"0");
-    return `${y}-${m}-${da}`;
-  };
+  const iso = (d) => { const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,"0"); const da = String(d.getDate()).padStart(2,"0"); return `${y}-${m}-${da}`; };
   const parseISO = (s) => new Date(`${s}T00:00:00`);
   const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+  const endOfMonth = (monthValue) => { const [y,m] = String(monthValue || "").split("-"); return iso(new Date(Number(y || 0), Math.max(0, Number(m || 1)), 0)); };
+  const startOfWeekIso = (weekValue) => {
+    const match = String(weekValue || "").match(/^(\d{4})-W(\d{2})$/);
+    if(!match) return todayISO();
+    const year = Number(match[1]);
+    const week = Number(match[2]);
+    const jan4 = new Date(Date.UTC(year, 0, 4));
+    const jan4Day = jan4.getUTCDay() || 7;
+    const monday = new Date(jan4);
+    monday.setUTCDate(jan4.getUTCDate() - jan4Day + 1 + (week - 1) * 7);
+    return `${monday.getUTCFullYear()}-${String(monday.getUTCMonth()+1).padStart(2,"0")}-${String(monday.getUTCDate()).padStart(2,"0")}`;
+  };
 
   const today = new Date();
-  const todayIso = iso(today);
-  const yearStartIso = `${today.getFullYear()}-01-01`;
-  const monthStartIso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-01`;
+  const todayIso = todayISO();
+  const selectedYear = String(state.filters.chartYear || today.getFullYear());
+  const selectedMonth = String(state.filters.chartMonth || monthISO(today));
+  const selectedWeek = String(state.filters.chartWeek || weekISO(today));
+  const selectedDay = String(state.filters.chartDay || todayIso);
 
-  const dayMap = new Map(); // iso -> revenue
+  const yearStartIso = `${selectedYear}-01-01`;
+  const yearEndIso = `${selectedYear}-12-31`;
+  const monthStartIso = `${selectedMonth}-01`;
+  const monthEndIso = endOfMonth(selectedMonth);
+  const weekStartIso = startOfWeekIso(selectedWeek);
+  const weekEndIso = iso(addDays(parseISO(weekStartIso), 6));
+
+  const dayMap = new Map();
   let allTotal = 0, yearTotal = 0, monthTotal = 0, weekTotal = 0, dayTotal = 0;
-
-  const dYearStart = parseISO(yearStartIso);
-  const dMonthStart = parseISO(monthStartIso);
-  const dWeekStart = addDays(today, -6); // utolsó 7 nap
 
   for(const s of (state.sales || [])){
     const dt = String(s.date || "").slice(0,10);
-    if(!dt) continue;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(dt)) continue;
 
     const tot = saleTotals(s, cat);
     const rev = Number(tot.revenue || 0);
     if(!rev) continue;
 
     dayMap.set(dt, (dayMap.get(dt) || 0) + rev);
-
     allTotal += rev;
-
-    const d = parseISO(dt);
-    if(d >= dYearStart) yearTotal += rev;
-    if(d >= dMonthStart) monthTotal += rev;
-    if(d >= parseISO(iso(dWeekStart))) weekTotal += rev;
-    if(dt === todayIso) dayTotal += rev;
+    if(dt >= yearStartIso && dt <= yearEndIso) yearTotal += rev;
+    if(dt >= monthStartIso && dt <= monthEndIso) monthTotal += rev;
+    if(dt >= weekStartIso && dt <= weekEndIso) weekTotal += rev;
+    if(dt === selectedDay) dayTotal += rev;
   }
 
   const setKpi = (id, val) => { const el = $(id); if(el) el.textContent = fmtFt(val); };
@@ -2191,28 +2386,33 @@ function drawChart(){
   setKpi("#kpi_week", weekTotal);
   setKpi("#kpi_day", dayTotal);
 
-  const buildDailySeries = (startIso, endIso) => {
+  const setText = (id, value) => { const el = $(id); if(el) el.textContent = value; };
+  setText("#chartYearSub", `${selectedYear}.01.01 – ${selectedYear}.12.31`);
+  setText("#chartMonthSub", `${selectedMonth}.01 – ${monthEndIso}`);
+  setText("#chartWeekSub", `${weekStartIso} – ${weekEndIso}`);
+  setText("#chartDaySub", `${selectedDay} • 00:00 – 23:59`);
+
+  const buildDailySeries = (startIso, endIso, mapLabel) => {
     const s = parseISO(startIso);
     const e = parseISO(endIso);
     const arr = [];
     for(let d = new Date(s); d <= e; d = addDays(d,1)){
       const key = iso(d);
-      arr.push({ label: key, rev: Number(dayMap.get(key) || 0) });
+      arr.push({ label: mapLabel ? mapLabel(d, key) : key, rev: Number(dayMap.get(key) || 0), rawLabel: key });
     }
     return arr;
   };
 
-  const buildMonthlySeries = (startIso, endIso) => {
+  const buildMonthlySeries = (startIso, endIso, forceFullYear = false) => {
     const s = parseISO(startIso);
     const e = parseISO(endIso);
-    const m = new Map(); // YYYY-MM -> rev
-    for(const [k, v] of dayMap.entries()){
-      const d = parseISO(k);
+    const monthlyMap = new Map();
+    for(const [key, value] of dayMap.entries()){
+      const d = parseISO(key);
       if(d < s || d > e) continue;
-      const ym = k.slice(0,7);
-      m.set(ym, (m.get(ym) || 0) + Number(v||0));
+      const ym = key.slice(0,7);
+      monthlyMap.set(ym, (monthlyMap.get(ym) || 0) + Number(value || 0));
     }
-    // ensure continuous months
     const arr = [];
     const cur = new Date(s);
     cur.setDate(1);
@@ -2220,15 +2420,14 @@ function drawChart(){
     end.setDate(1);
     while(cur <= end){
       const ym = `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,"0")}`;
-      arr.push({ label: ym, rev: Number(m.get(ym) || 0) });
+      arr.push({ label: forceFullYear ? `${String(cur.getMonth()+1).padStart(2,"0")}. hó` : fmtMonthLabel(ym), rev: Number(monthlyMap.get(ym) || 0), rawLabel: ym });
       cur.setMonth(cur.getMonth()+1);
     }
     return arr;
   };
 
-  const drawLine = (canvas, points) => {
+  const drawSeries = (canvas, points, opts = {}) => {
     if(!canvas) return;
-
     const rect = canvas.getBoundingClientRect();
     const w = Math.max(1, rect.width);
     const h = Math.max(1, rect.height);
@@ -2242,25 +2441,22 @@ function drawChart(){
     ctx.setTransform(dpr,0,0,dpr,0,0);
     ctx.clearRect(0,0,w,h);
 
-    const padL = 44, padR = 14, padT = 18, padB = 32;
+    const padL = 52, padR = 18, padT = 18, padB = 34;
     const pw = Math.max(1, w - padL - padR);
     const ph = Math.max(1, h - padT - padB);
+    const max = Math.max(1, ...points.map(p => Number(p.rev || 0)));
+    const n = Math.max(1, points.length);
 
-    const max = Math.max(1, ...points.map(p=>Number(p.rev||0)));
-    const n = points.length;
+    const xAt = (i) => (n <= 1 ? padL + pw / 2 : padL + (pw * (i/(n-1))));
+    const yAt = (v) => padT + ph - (ph * (Number(v||0)/max));
 
-    // grid
     ctx.lineWidth = 1;
     ctx.strokeStyle = grid;
     for(let i=0;i<=4;i++){
       const y = padT + (ph * i/4);
-      ctx.beginPath();
-      ctx.moveTo(padL, y);
-      ctx.lineTo(padL + pw, y);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + pw, y); ctx.stroke();
     }
 
-    // y labels
     ctx.fillStyle = muted;
     ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
     ctx.textAlign = "right";
@@ -2271,77 +2467,61 @@ function drawChart(){
       ctx.fillText(fmtFt(v).replace(" Ft",""), padL - 8, y);
     }
 
-    const xAt = (i) => {
-      if(n <= 1) return padL + pw/2;
-      return padL + (pw * (i/(n-1)));
-    };
-    const yAt = (v) => padT + ph - (ph * (Number(v||0)/max));
+    const gradient = ctx.createLinearGradient(0, padT, 0, padT + ph);
+    gradient.addColorStop(0, accent + "88");
+    gradient.addColorStop(1, accent + "08");
 
-    // line
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = 2;
+    if(points.length === 1){
+      const barW = Math.min(120, pw * 0.38);
+      const x = xAt(0) - barW / 2;
+      const y = yAt(points[0].rev);
+      ctx.fillStyle = gradient; ctx.fillRect(x, y, barW, padT + ph - y);
+      ctx.strokeStyle = accent; ctx.lineWidth = 2; ctx.strokeRect(x, y, barW, padT + ph - y);
+      ctx.fillStyle = text; ctx.textAlign = "center"; ctx.textBaseline = "top";
+      ctx.fillText(String(points[0].label || ""), xAt(0), padT + ph + 10);
+      return;
+    }
+
     ctx.beginPath();
-    points.forEach((p,i)=>{
-      const x = xAt(i);
-      const y = yAt(p.rev);
-      if(i===0) ctx.moveTo(x,y);
-      else ctx.lineTo(x,y);
-    });
+    points.forEach((p, i) => { const x = xAt(i); const y = yAt(p.rev); if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    ctx.lineTo(xAt(points.length - 1), padT + ph);
+    ctx.lineTo(xAt(0), padT + ph);
+    ctx.closePath();
+    ctx.fillStyle = gradient; ctx.fill();
+
+    ctx.strokeStyle = accent; ctx.lineWidth = 2.5; ctx.beginPath();
+    points.forEach((p, i) => { const x = xAt(i); const y = yAt(p.rev); if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
     ctx.stroke();
 
-    // points
-    ctx.fillStyle = accent;
-    points.forEach((p,i)=>{
-      const x = xAt(i);
-      const y = yAt(p.rev);
+    points.forEach((p, i) => {
+      const x = xAt(i); const y = yAt(p.rev);
       ctx.beginPath();
-      ctx.arc(x,y,3.2,0,Math.PI*2);
+      ctx.fillStyle = i === (opts.highlightIndex ?? -1) ? accent2 : accent;
+      ctx.arc(x, y, i === (opts.highlightIndex ?? -1) ? 4.5 : 3.2, 0, Math.PI * 2);
       ctx.fill();
     });
 
-    // x labels (first, middle, last)
-    ctx.fillStyle = text;
-    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-
-    const labels = [];
-    if(n === 1){
-      labels.push({i:0, t: points[0].label});
-    }else if(n === 2){
-      labels.push({i:0, t: points[0].label});
-      labels.push({i:1, t: points[1].label});
-    }else{
-      labels.push({i:0, t: points[0].label});
-      labels.push({i:Math.floor((n-1)/2), t: points[Math.floor((n-1)/2)].label});
-      labels.push({i:n-1, t: points[n-1].label});
-    }
-
-    labels.forEach(o=>{
-      const t = String(o.t || "");
-      ctx.fillText(t, xAt(o.i), padT + ph + 10);
-    });
+    const labelIndexes = opts.allLabels ? points.map((_, i) => i) : (points.length <= 4 ? points.map((_, i) => i) : [0, Math.floor((points.length - 1) / 2), points.length - 1]);
+    ctx.fillStyle = text; ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    for(const idx of labelIndexes){ ctx.fillText(String(points[idx].label || ""), xAt(idx), padT + ph + 10); }
   };
 
-  // ranges
   const allDates = [...dayMap.keys()].sort();
   const allStart = allDates[0] || todayIso;
-  const allEnd = allDates[allDates.length-1] || todayIso;
+  const allEnd = allDates[allDates.length - 1] || todayIso;
 
   const seriesAll = buildMonthlySeries(allStart, allEnd);
-  const seriesYear = buildMonthlySeries(yearStartIso, todayIso);
-  const seriesMonth = buildDailySeries(monthStartIso, todayIso);
-  const seriesWeek = buildDailySeries(iso(addDays(today, -6)), todayIso);
-  const seriesDay = buildDailySeries(iso(addDays(today, -1)), todayIso);
+  const seriesYear = buildMonthlySeries(yearStartIso, yearEndIso, true);
+  const seriesMonth = buildDailySeries(monthStartIso, monthEndIso, (_d, key) => fmtDayLabel(key));
+  const seriesWeek = buildDailySeries(weekStartIso, weekEndIso, (d, key) => `${weekdayHu[d.getDay()]} ${fmtDayLabel(key)}`);
+  const seriesDay = [{ label: fmtDayLabel(selectedDay), rev: dayTotal, rawLabel: selectedDay }];
 
-  drawLine($("#revAll"), seriesAll);
-  drawLine($("#revYear"), seriesYear);
-  drawLine($("#revMonth"), seriesMonth);
-  drawLine($("#revWeek"), seriesWeek);
-  drawLine($("#revDay"), seriesDay);
+  drawSeries($("#revAll"), seriesAll);
+  drawSeries($("#revYear"), seriesYear);
+  drawSeries($("#revMonth"), seriesMonth, { allLabels: seriesMonth.length <= 10 });
+  drawSeries($("#revWeek"), seriesWeek, { allLabels: true, highlightIndex: seriesWeek.findIndex(p => p.rawLabel === selectedDay) });
+  drawSeries($("#revDay"), seriesDay);
 }
-
-
 
   function renderAll(){
     renderSettings();
@@ -2357,9 +2537,7 @@ function drawChart(){
   function init(){
     renderTabs();
     $("#btnReload").onclick = () => location.reload();
-    $("#modalBg").addEventListener("click", (e) => {
-      if(e.target === $("#modalBg")) closeModal();
-    });
+    $("#modalCloseBtn")?.addEventListener("click", closeModal);
 
     // first render panels + inject settings inputs ids
     renderSettings();

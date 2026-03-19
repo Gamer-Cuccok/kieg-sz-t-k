@@ -166,7 +166,7 @@
     document.body.appendChild(overlay);
 
     overlay.addEventListener("click", (e)=>{
-      if(e.target === overlay) toggleCart(false);
+      if(e.target === overlay) return;
     });
     document.querySelector("#svCartClose")?.addEventListener("click", (e)=>{
       e.preventDefault(); e.stopPropagation();
@@ -1748,9 +1748,18 @@
 
         // Update header and footer
         header.innerHTML = `
-            <div class="popup-title">${popup.title_hu || t("newAvail")}</div>
-            <div class="popup-subtitle">${category.label}</div>
+            <div class="popup-headline">
+              <div>
+                <div class="popup-title">${popup.title_hu || t("newAvail")}</div>
+                <div class="popup-subtitle">${category.label}</div>
+              </div>
+              <button type="button" class="popup-close" aria-label="Bezárás">✕</button>
+            </div>
         `;
+        header.querySelector('.popup-close')?.addEventListener('click', () => {
+          if(slideInterval) clearInterval(slideInterval);
+          bg.remove();
+        });
 
         footer.innerHTML = '';
         
@@ -1851,12 +1860,9 @@
         }
     }
 
-    // Close on background click
+    // Backdrop click ne zárja be
     bg.addEventListener("click", (e) => {
-        if(e.target === bg) {
-            if(slideInterval) clearInterval(slideInterval);
-            bg.remove();
-        }
+        if(e.target === bg) return;
     });
   }
 
