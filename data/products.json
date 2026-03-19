@@ -274,7 +274,7 @@
       "id": "p_cd734ed84b46d_19b5bc23e59",
       "categoryId": "elflush40",
       "status": "ok",
-      "stock": 4,
+      "stock": 5,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -805,7 +805,7 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1773953419690,
-    "updatedAt": "2026-03-19T20:50:19.690Z"
+    "rev": 1773953432297,
+    "updatedAt": "2026-03-19T20:50:32.297Z"
   }
 }
