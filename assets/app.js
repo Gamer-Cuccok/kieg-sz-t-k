@@ -26,6 +26,7 @@
     reservationsHash: "",
     reservationsFresh: false,
     reserveApi: "",
+    discordWebhook: "",
   };
 
   const isAdminMode = (()=>{
@@ -166,7 +167,7 @@
     document.body.appendChild(overlay);
 
     overlay.addEventListener("click", (e)=>{
-      if(e.target === overlay) return;
+      if(e.target === overlay) toggleCart(false);
     });
     document.querySelector("#svCartClose")?.addEventListener("click", (e)=>{
       e.preventDefault(); e.stopPropagation();
@@ -523,6 +524,63 @@
       return await callReserveApi("reservation.create", { reservation });
     }
 
+    function getDiscordWebhookUrl(){
+      try{
+        const url = String(state.discordWebhook || localStorage.getItem("sv_discord_webhook") || "").trim();
+        return url.replace(/\/+$/,'');
+      }catch{ return ""; }
+    }
+
+    function buildDiscordReservationPayload(reservation, items){
+      const totalQty = items.reduce((a, it) => a + Math.max(0, Number(it.qty || 0)), 0);
+      const totalSum = items.reduce((a, it) => a + (Math.max(0, Number(it.qty || 0)) * Math.max(0, Number(it.unitPrice || 0))), 0);
+      const itemLines = items.map(it => {
+        const label = `${it.name || "Termék"}${it.flavor ? " • " + it.flavor : ""}`;
+        const qty = Math.max(0, Number(it.qty || 0));
+        const lineTotal = qty * Math.max(0, Number(it.unitPrice || 0));
+        return `• ${label} — ${qty} db — ${fmtFt(lineTotal)}`;
+      }).join("\n").slice(0, 1000) || "—";
+
+      return {
+        content: '@everyone Új foglalás érkezett',
+        allowed_mentions: { parse: ['everyone'] },
+        embeds: [{
+          title: '🛒 Új ShadowVapes foglalás',
+          color: 0x7c5cff,
+          description: 'Új foglalás érkezett a weboldalról.',
+          fields: [
+            { name: 'Foglalás azonosító', value: `#${String(reservation.publicCode || reservation.id || '—')}`, inline: true },
+            { name: 'Darabszám', value: `${totalQty} db`, inline: true },
+            { name: 'Végösszeg', value: fmtFt(totalSum), inline: true },
+            { name: 'Tételek', value: itemLines, inline: false },
+            { name: 'Belső ID', value: String(reservation.id || '—'), inline: false }
+          ],
+          footer: { text: 'ShadowVapes foglalás' },
+          timestamp: new Date(Number(reservation.createdAt || Date.now())).toISOString()
+        }]
+      };
+    }
+
+    async function sendDiscordReservationWebhook(reservation, items){
+      const url = getDiscordWebhookUrl();
+      if(!url) return false;
+      const payload = buildDiscordReservationPayload(reservation, items);
+
+      try{
+        const fd = new FormData();
+        fd.append('payload_json', JSON.stringify(payload));
+        await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors',
+          body: fd
+        });
+        return true;
+      }catch(err){
+        console.warn('Discord webhook hiba:', err);
+        return false;
+      }
+    }
+
     async function updateReservationViaApi(id, reservation){
       return await callReserveApi("reservation.update", { id, reservation });
     }
@@ -724,6 +782,7 @@
       };
 
             await createReservationViaApi(reservation);
+            await sendDiscordReservationWebhook(reservation, items);
 
       try{
         state.reservations = [...(state.reservations||[]), reservation];
@@ -914,6 +973,13 @@
             if(api){
               state.reserveApi = api;
               try{ localStorage.setItem("sv_res_api", api); }catch{}
+            }
+          }catch{}
+          try{
+            const hook = String(j.discordWebhook || j.discord_webhook || j.webhook || "").trim();
+            if(hook){
+              state.discordWebhook = hook;
+              try{ localStorage.setItem("sv_discord_webhook", hook); }catch{}
             }
           }catch{}
           try { localStorage.setItem("sv_source", JSON.stringify(source)); } catch {}
@@ -1748,18 +1814,9 @@
 
         // Update header and footer
         header.innerHTML = `
-            <div class="popup-headline">
-              <div>
-                <div class="popup-title">${popup.title_hu || t("newAvail")}</div>
-                <div class="popup-subtitle">${category.label}</div>
-              </div>
-              <button type="button" class="popup-close" aria-label="Bezárás">✕</button>
-            </div>
+            <div class="popup-title">${popup.title_hu || t("newAvail")}</div>
+            <div class="popup-subtitle">${category.label}</div>
         `;
-        header.querySelector('.popup-close')?.addEventListener('click', () => {
-          if(slideInterval) clearInterval(slideInterval);
-          bg.remove();
-        });
 
         footer.innerHTML = '';
         
@@ -1860,9 +1917,12 @@
         }
     }
 
-    // Backdrop click ne zárja be
+    // Close on background click
     bg.addEventListener("click", (e) => {
-        if(e.target === bg) return;
+        if(e.target === bg) {
+            if(slideInterval) clearInterval(slideInterval);
+            bg.remove();
+        }
     });
   }
 
