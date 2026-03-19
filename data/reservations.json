@@ -20,23 +20,28 @@
     "id": "r_mmxwpxx7_py7dpm",
     "publicCode": "440",
     "createdAt": 1773951163387,
-    "expiresAt": 1774123963387,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_dff7056a3eded8_19cae7977fb",
         "qty": 2,
-        "unitPrice": 6500
+        "unitPrice": 6500,
+        "unitPriceJD": null
       },
       {
         "productId": "p_7e90788f76589_19b6adc49b6",
         "qty": 1,
-        "unitPrice": 6500
+        "unitPrice": 6500,
+        "unitPriceJD": null
       },
       {
         "productId": "p_a52ce38bb9b78_19cae8202a0",
         "qty": 1,
-        "unitPrice": 6500
+        "unitPrice": 6500,
+        "unitPriceJD": null
       }
     ]
   }
