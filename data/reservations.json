@@ -57,5 +57,39 @@
         "unitPriceJD": null
       }
     ]
+  },
+  {
+    "id": "r_mmy3vo8p_98xyog",
+    "publicCode": "390",
+    "createdAt": 1773963188089,
+    "expiresAt": 1774135988089,
+    "confirmed": false,
+    "items": [
+      {
+        "productId": "p_d44a935527ac98_19b5b68e535",
+        "qty": 1,
+        "unitPrice": 6000
+      },
+      {
+        "productId": "p_4b3ea070114908_19b5bc64622",
+        "qty": 1,
+        "unitPrice": 7000
+      },
+      {
+        "productId": "p_f93b7eb924ed1_19b4e156422",
+        "qty": 1,
+        "unitPrice": 5000
+      },
+      {
+        "productId": "p_0b0caf39ccc8_19c7b06f9d2",
+        "qty": 1,
+        "unitPrice": 5000
+      },
+      {
+        "productId": "p_04bcb951d2f2f_19c8a741b4e",
+        "qty": 1,
+        "unitPrice": 500
+      }
+    ]
   }
 ]
