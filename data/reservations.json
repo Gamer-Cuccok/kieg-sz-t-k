@@ -20,13 +20,16 @@
     "id": "r_mmxa37g6_go0fk0",
     "publicCode": "636",
     "createdAt": 1773913151094,
-    "expiresAt": 1774085951094,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_03568182a15ac_19c7ae3aa7d",
         "qty": 1,
-        "unitPrice": 6500
+        "unitPrice": 6500,
+        "unitPriceJD": null
       }
     ]
   }
