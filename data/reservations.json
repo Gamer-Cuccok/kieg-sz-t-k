@@ -10,7 +10,7 @@
     "editCount": 0,
     "recorded": false,
     "deleted": false,
-    "lastAction": "Ãj foglalÃ¡s Ã©rkezett",
+    "lastAction": "ÃÂj foglalÃÂ¡s ÃÂ©rkezett",
     "discordMessageId": "",
     "items": [
       {
@@ -39,6 +39,7 @@
         "qty": 1,
         "unitPrice": 7000
       }
-    ]
+    ],
+    "discordMessageId": "1484352795653181501"
   }
 ]
