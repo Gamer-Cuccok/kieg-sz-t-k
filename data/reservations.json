@@ -1,1 +1,23 @@
-[]
+[
+  {
+    "id": "r_mmz3oyxt_ue7ab5",
+    "publicCode": "954",
+    "createdAt": 1774023341541,
+    "expiresAt": 1774196141541,
+    "confirmed": false,
+    "items": [
+      {
+        "productId": "p_4f4efd0510951_19b6ae36cba",
+        "qty": 1,
+        "unitPrice": 6500,
+        "unitPriceJD": 9500
+      },
+      {
+        "productId": "p_b862159bc3f608_19beb0c6380",
+        "qty": 1,
+        "unitPrice": 6500,
+        "unitPriceJD": 9500
+      }
+    ]
+  }
+]
