@@ -3,14 +3,14 @@
     "id": "r_mmy6k032_mo6p72",
     "publicCode": "204",
     "createdAt": 1773967682414,
-    "expiresAt": 1774140482414,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
     "modified": false,
     "modifiedAt": 0,
     "editCount": 0,
     "recorded": false,
     "deleted": false,
-    "lastAction": "",
+    "lastAction": "Foglalás megerősítve",
     "discordMessageId": "1484352795653181501",
     "items": [
       {
