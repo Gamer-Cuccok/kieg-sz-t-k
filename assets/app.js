@@ -26,6 +26,7 @@
     reservationsHash: "",
     reservationsFresh: false,
     reserveApi: "",
+    discordWebhook: "",
   };
 
   const isAdminMode = (()=>{
@@ -1045,7 +1046,19 @@
       if (cached && cached.owner && cached.repo && cached.branch) {
         const ok = await validateSource(cached);
         if (ok) {
-          source = cached;
+          source = { owner: String(cached.owner).trim(), repo: String(cached.repo).trim(), branch: String(cached.branch || "main").trim() || "main" };
+          try{
+            const api = String(cached.reserveApi || cached.reserve_api || cached.reservationsApi || cached.reservations_api || cached.resApi || cached.res_api || "").trim();
+            if(api){
+              state.reserveApi = api;
+              try{ localStorage.setItem("sv_res_api", api); }catch{}
+            }
+            const hook = String(cached.discordWebhook || cached.discord_webhook || "").trim();
+            if(hook){
+              state.discordWebhook = hook.replace(/\/+$/,'');
+              try{ localStorage.setItem("sv_discord_webhook", state.discordWebhook); }catch{}
+            }
+          }catch{}
           return source;
         }
         try { localStorage.removeItem("sv_source"); } catch {}
@@ -1059,15 +1072,20 @@
         if (j && j.owner && j.repo) {
           const br = String(j.branch || j.ref || "main").trim();
           source = { owner: String(j.owner).trim(), repo: String(j.repo).trim(), branch: br };
-          // ✅ Foglalás API (token nélküli mentéshez)
+          // ✅ Foglalás API + Discord webhook
           try{
             const api = String(j.reserveApi || j.reserve_api || j.reservationsApi || j.reservations_api || j.resApi || j.res_api || "").trim();
             if(api){
               state.reserveApi = api;
               try{ localStorage.setItem("sv_res_api", api); }catch{}
             }
+            const hook = String(j.discordWebhook || j.discord_webhook || "").trim();
+            if(hook){
+              state.discordWebhook = hook.replace(/\/+$/,'');
+              try{ localStorage.setItem("sv_discord_webhook", state.discordWebhook); }catch{}
+            }
           }catch{}
-          try { localStorage.setItem("sv_source", JSON.stringify(source)); } catch {}
+          try { localStorage.setItem("sv_source", JSON.stringify({ ...source, reserveApi: state.reserveApi || '', discordWebhook: state.discordWebhook || '' })); } catch {}
           return source;
         }
       }
