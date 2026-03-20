@@ -20,5 +20,29 @@
         "unitPrice": 5000
       }
     ]
+  },
+  {
+    "id": "r_mmy6iclv_54fj4y",
+    "publicCode": "602",
+    "createdAt": 1773967605331,
+    "expiresAt": 1774140405331,
+    "confirmed": false,
+    "editCount": 0,
+    "recorded": false,
+    "deleted": false,
+    "lastAction": "Új foglalás érkezett",
+    "discordMessageId": "",
+    "items": [
+      {
+        "productId": "p_7e90788f76589_19b6adc49b6",
+        "qty": 3,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_a52ce38bb9b78_19cae8202a0",
+        "qty": 2,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
