@@ -5,19 +5,23 @@
     "createdAt": 1773967682414,
     "expiresAt": null,
     "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "editCount": 0,
+    "modified": true,
+    "modifiedAt": 1773967802157,
+    "editCount": 1,
     "recorded": false,
     "deleted": false,
-    "lastAction": "Foglalás megerősítve",
+    "lastAction": "Foglalás szerkesztve",
     "discordMessageId": "1484352795653181501",
     "items": [
       {
         "productId": "p_6db677a6c8739_19b5bd13894",
         "qty": 1,
-        "unitPrice": 7000,
-        "unitPriceJD": null
+        "unitPrice": 7000
+      },
+      {
+        "productId": "p_0b0caf39ccc8_19c7b06f9d2",
+        "qty": 1,
+        "unitPrice": 5000
       }
     ]
   }
