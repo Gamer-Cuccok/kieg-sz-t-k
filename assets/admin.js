@@ -178,29 +178,71 @@
     return String(loadCfg().discordWebhook || "").trim();
   }
 
+  function getDiscordWebhookBaseUrl(){
+    return getDiscordWebhookUrl().replace(/[?#].*$/, '').replace(/\/+$/, '');
+  }
+
   function fmtDiscordStrike(text){
     const t = String(text == null ? "—" : text).trim() || "—";
     return `~~${t.replace(/~/g, "")}~~`;
   }
 
-  async function postDiscordWebhook(payload){
-    const url = getDiscordWebhookUrl();
-    if(!url) return false;
-    const form = new FormData();
-    form.append("payload_json", JSON.stringify(payload));
-    try{
-      await fetch(url, {
-        method: "POST",
-        mode: "no-cors",
-        credentials: "omit",
-        keepalive: true,
-        body: form
-      });
-      return true;
-    }catch(err){
-      console.warn("Discord webhook send failed", err);
-      return false;
+  async function discordWebhookRequest(method, url, payload){
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      credentials: "omit",
+      body: JSON.stringify(payload)
+    });
+    const txt = await res.text().catch(() => "");
+    let data = null;
+    try{ data = txt ? JSON.parse(txt) : null; }catch{ data = null; }
+    if(!res.ok){
+      const err = new Error((data && data.message) || `Discord webhook hiba (${res.status})`);
+      err.status = res.status;
+      err.data = data;
+      throw err;
     }
+    return data;
+  }
+
+  async function postDiscordWebhook(payload, opts = {}){
+    const baseUrl = getDiscordWebhookBaseUrl();
+    if(!baseUrl) return null;
+    const wait = !!opts.wait;
+    const url = wait ? `${baseUrl}?wait=true` : baseUrl;
+    try{
+      return await discordWebhookRequest("POST", url, payload);
+    }catch(err){
+      if(wait){
+        console.warn("Discord webhook JSON send failed, fallback no-cors POST", err);
+      }else{
+        console.warn("Discord webhook JSON send failed", err);
+      }
+      const form = new FormData();
+      form.append("payload_json", JSON.stringify(payload));
+      try{
+        await fetch(baseUrl, {
+          method: "POST",
+          mode: "no-cors",
+          credentials: "omit",
+          keepalive: true,
+          body: form
+        });
+        return null;
+      }catch(err2){
+        console.warn("Discord webhook send failed", err2);
+        return null;
+      }
+    }
+  }
+
+  async function patchDiscordWebhookMessage(messageId, payload){
+    const baseUrl = getDiscordWebhookBaseUrl();
+    const mid = String(messageId || "").trim();
+    if(!baseUrl || !mid) return null;
+    const url = `${baseUrl}/messages/${encodeURIComponent(mid)}?wait=true`;
+    return await discordWebhookRequest("PATCH", url, payload);
   }
 
   function reservationDiscordMeta(r){
@@ -232,16 +274,17 @@
       ? meta.lines.map(x => mapText(`• ${x.label} — ${x.qty} db — ${fmtFt(x.lineTotal)}`)).join("\n")
       : mapText('—');
     const publicCode = String(r?.publicCode || '---');
+    const activeAction = String(r?.__discordAction || 'Új foglalás érkezett');
     const actionText = strike
       ? `@everyone ${r?.__discordAction || 'Foglalás lezárva'} • #${publicCode}`
-      : `@everyone Új foglalás érkezett • #${publicCode}`;
+      : `@everyone ${activeAction} • #${publicCode}`;
 
     return {
       content: actionText,
       allowed_mentions: { parse: ['everyone'] },
       embeds: [{
-        title: strike ? '~~🛒 ShadowVapes foglalás~~' : '🛒 Új ShadowVapes foglalás',
-        description: strike ? mapText(r?.__discordAction || 'Foglalás lezárva') : 'Új foglalás érkezett a felhasználói oldalról.',
+        title: strike ? '~~🛒 ShadowVapes foglalás~~' : '🛒 ShadowVapes foglalás',
+        description: strike ? mapText(r?.__discordAction || 'Foglalás lezárva') : mapText(activeAction),
         color: strike ? 9807270 : 5763719,
         timestamp: new Date().toISOString(),
         fields: [
@@ -257,9 +300,120 @@
     };
   }
 
+  async function sendReservationDiscordUpdate(r, opts = {}){
+    const closed = !!opts.closed;
+    const actionText = String(opts.actionText || (closed ? 'Foglalás lezárva' : 'Foglalás frissítve'));
+    const payload = buildReservationDiscordPayload({ ...(r||{}), __discordAction: actionText }, closed ? 'closed' : 'active');
+    const currentId = String(r?.discordMessageId || '').trim();
+
+    if(currentId){
+      try{
+        const updated = await patchDiscordWebhookMessage(currentId, payload);
+        return { ok:true, messageId: currentId, updated: true, response: updated };
+      }catch(err){
+        console.warn('Discord reservation message patch failed, fallback create', err);
+      }
+    }
+
+    const created = await postDiscordWebhook(payload, { wait:true });
+    const newId = String(created?.id || '').trim();
+    if(newId && r && !closed){
+      r.discordMessageId = newId;
+    }
+    return { ok: !!(created || newId), messageId: newId || currentId || '', created: !!newId, response: created };
+  }
+
   async function sendReservationDiscordClosed(r, actionText){
-    const payload = buildReservationDiscordPayload({ ...(r||{}), __discordAction: actionText }, 'closed');
-    return await postDiscordWebhook(payload);
+    return await sendReservationDiscordUpdate(r, { closed:true, actionText });
+  }
+
+  async function sendReservationDiscordActive(r, actionText){
+    return await sendReservationDiscordUpdate(r, { closed:false, actionText });
+  }
+
+  function saleDiscordMeta(s){
+    const items = Array.isArray(s?.items) ? s.items : [];
+    let totalQty = 0;
+    let totalSum = 0;
+    const lines = items.map(it => {
+      const p = prodById(it.productId);
+      const qty = Math.max(0, Number(it.qty || 0));
+      const unit = Math.max(0, Number(it.unitPrice || effectivePrice(p) || 0));
+      const lineTotal = qty * unit;
+      totalQty += qty;
+      totalSum += lineTotal;
+      return {
+        label: p ? prodLabel(p) : String(it.productId || 'Ismeretlen termék'),
+        qty,
+        unit,
+        lineTotal
+      };
+    });
+    return { totalQty, totalSum, lines };
+  }
+
+  function saleChangeSummary(beforeSale, afterSale){
+    if(!beforeSale || !afterSale) return '—';
+    const changes = [];
+    if(String(beforeSale.date || '') !== String(afterSale.date || '')) changes.push(`• Dátum: ${beforeSale.date || '—'} → ${afterSale.date || '—'}`);
+    if(String(beforeSale.name || '') !== String(afterSale.name || '')) changes.push(`• Név: ${beforeSale.name || '—'} → ${afterSale.name || '—'}`);
+    if(String(beforeSale.payment || '') !== String(afterSale.payment || '')) changes.push(`• Fizetés: ${beforeSale.payment || '—'} → ${afterSale.payment || '—'}`);
+    const beforeMeta = saleDiscordMeta(beforeSale);
+    const afterMeta = saleDiscordMeta(afterSale);
+    if(JSON.stringify(beforeSale.items || []) !== JSON.stringify(afterSale.items || [])){
+      changes.push(`• Tételek: ${beforeMeta.totalQty} db / ${fmtFt(beforeMeta.totalSum)} → ${afterMeta.totalQty} db / ${fmtFt(afterMeta.totalSum)}`);
+    }
+    return (changes.join('\n') || '—').slice(0, 1024);
+  }
+
+  function buildSaleDiscordPayload(s, opts = {}){
+    const mode = String(opts.mode || 'active');
+    const strike = mode === 'closed';
+    const actionText = String(opts.actionText || (strike ? 'Eladás törölve' : 'Új eladás rögzítve'));
+    const meta = saleDiscordMeta(s);
+    const mapText = (txt) => strike ? fmtDiscordStrike(txt) : String(txt == null || txt === '' ? '—' : txt);
+    const list = meta.lines.length
+      ? meta.lines.map(x => mapText(`• ${x.label} — ${x.qty} db — ${fmtFt(x.lineTotal)}`)).join('\n')
+      : mapText('—');
+
+    const fields = [
+      { name: 'Eladás azonosító', value: mapText(String(s?.id || '—')), inline: true },
+      { name: 'Dátum', value: mapText(String(s?.date || '—')), inline: true },
+      { name: 'Név', value: mapText(String(s?.name || '—')), inline: true },
+      { name: 'Fizetés', value: mapText(String(s?.payment || '—')), inline: true },
+      { name: 'Összes darab', value: mapText(`${meta.totalQty} db`), inline: true },
+      { name: 'Végösszeg', value: mapText(fmtFt(meta.totalSum)), inline: true },
+      { name: 'Tételek', value: list.slice(0, 1024), inline: false }
+    ];
+
+    if(opts.beforeSale && mode !== 'closed'){
+      fields.splice(6, 0, { name: 'Módosítás', value: saleChangeSummary(opts.beforeSale, s), inline: false });
+    }
+
+    return {
+      content: `@everyone ${actionText} • ${String(s?.id || '—')}`,
+      allowed_mentions: { parse: ['everyone'] },
+      embeds: [{
+        title: strike ? '~~💸 ShadowVapes eladás~~' : '💸 ShadowVapes eladás',
+        description: strike ? mapText(actionText) : actionText,
+        color: strike ? 9807270 : (opts.beforeSale ? 16753920 : 5763719),
+        timestamp: new Date().toISOString(),
+        fields,
+        footer: { text: strike ? 'ShadowVapes • törölt eladás' : (opts.beforeSale ? 'ShadowVapes • módosított eladás' : 'ShadowVapes • új eladás') }
+      }]
+    };
+  }
+
+  async function sendSaleDiscordCreated(sale){
+    return await postDiscordWebhook(buildSaleDiscordPayload(sale, { mode:'active', actionText:'Új eladás rögzítve' }));
+  }
+
+  async function sendSaleDiscordUpdated(afterSale, beforeSale){
+    return await postDiscordWebhook(buildSaleDiscordPayload(afterSale, { mode:'active', actionText:'Eladás módosítva', beforeSale }));
+  }
+
+  async function sendSaleDiscordDeleted(sale){
+    return await postDiscordWebhook(buildSaleDiscordPayload(sale, { mode:'closed', actionText:'Eladás törölve' }));
   }
 
   /* ---------- Data logic ---------- */
@@ -392,6 +546,7 @@ state.sales = state.sales.map(s => {
         confirmed,
         modified: !!r.modified,
         modifiedAt: Number(r.modifiedAt || 0) || 0,
+        discordMessageId: String(r.discordMessageId || r.discord_message_id || ""),
         items
       });
     }
@@ -1293,6 +1448,7 @@ function renderProducts(){
           </div>
           <div style="display:flex;gap:10px;align-items:center;">
             <button class="ghost" data-view="${escapeHtml(s.id)}">Megnéz</button>
+            <button class="ghost" data-editsale="${escapeHtml(s.id)}">Szerkeszt</button>
             <button class="danger" data-delsale="${escapeHtml(s.id)}">Töröl (rollback)</button>
           </div>
         </div>
@@ -1325,6 +1481,9 @@ function renderProducts(){
     });
     $("#panelSales").querySelectorAll("button[data-view]").forEach(b => {
       b.onclick = () => viewSale(b.dataset.view);
+    });
+    $("#panelSales").querySelectorAll("button[data-editsale]").forEach(b => {
+      b.onclick = () => editSale(b.dataset.editsale);
     });
 
     // reservation handlers
@@ -1461,73 +1620,72 @@ function openProductPicker(opts = {}){
 
     const itemsRoot = body.querySelector("#s_items");
 
+    const addItemRow = (pref = {}) => {
+      const row = document.createElement("div");
+      row.className = "rowline table";
+      row.innerHTML = `
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;">
+          <img class="it-thumb" alt="" />
+          <button type="button" class="it-pick-btn it_pick">Válassz terméket…</button>
+          <input type="hidden" class="it_prod" value="">
+          <input class="it_qty" type="number" min="1" value="1" style="width:110px;">
+          <input class="it_price" type="number" min="0" value="0" style="width:150px;">
+          <button class="danger it_del" type="button">Töröl</button>
+        </div>
+      `;
 
-const addItemRow = (pref = {}) => {
-  const row = document.createElement("div");
-  row.className = "rowline table";
-  row.innerHTML = `
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;">
-      <img class="it-thumb" alt="" />
-      <button type="button" class="it-pick-btn it_pick">Válassz terméket…</button>
-      <input type="hidden" class="it_prod" value="">
-      <input class="it_qty" type="number" min="1" value="1" style="width:110px;">
-      <input class="it_price" type="number" min="0" value="0" style="width:150px;">
-      <button class="danger it_del" type="button">Töröl</button>
-    </div>
-  `;
+      const pidInp = row.querySelector(".it_prod");
+      const pickBtn = row.querySelector(".it_pick");
+      const qtyInp = row.querySelector(".it_qty");
+      const priceInp = row.querySelector(".it_price");
+      const thumb = row.querySelector(".it-thumb");
 
-  const pidInp = row.querySelector(".it_prod");
-  const pickBtn = row.querySelector(".it_pick");
-  const qtyInp = row.querySelector(".it_qty");
-  const priceInp = row.querySelector(".it_price");
-  const thumb = row.querySelector(".it-thumb");
+      const syncThumb = (p) => {
+        const img = p && (p.image || "").trim();
+        if(!thumb) return;
+        if(img){
+          thumb.src = img;
+          thumb.style.visibility = "visible";
+        }else{
+          thumb.removeAttribute("src");
+          thumb.style.visibility = "hidden";
+        }
+      };
 
-  const syncThumb = (p) => {
-    const img = p && (p.image || "").trim();
-    if(!thumb) return;
-    if(img){
-      thumb.src = img;
-      thumb.style.visibility = "visible";
-    }else{
-      thumb.removeAttribute("src");
-      thumb.style.visibility = "hidden";
-    }
-  };
+      const applyPid = (pid, setPrice = true) => {
+        pidInp.value = String(pid || "");
+        const p = prodById(pidInp.value);
+        pickBtn.textContent = p ? prodLabel(p) : "Válassz terméket…";
+        if(setPrice){
+          priceInp.value = String(p ? effectivePrice(p) : 0);
+        }
+        syncThumb(p);
+      };
 
-  const applyPid = (pid, setPrice = true) => {
-    pidInp.value = String(pid || "");
-    const p = prodById(pidInp.value);
-    pickBtn.textContent = p ? prodLabel(p) : "Válassz terméket…";
-    if(setPrice){
-      priceInp.value = String(p ? effectivePrice(p) : 0);
-    }
-    syncThumb(p);
-  };
+      pickBtn.onclick = async () => {
+        const pid = await openProductPicker({ title: "Válassz terméket" });
+        if(pid) applyPid(pid, true);
+      };
 
-  pickBtn.onclick = async () => {
-    const pid = await openProductPicker({ title: "Válassz terméket" });
-    if(pid) applyPid(pid, true);
-  };
+      row.querySelector(".it_del").onclick = () => row.remove();
 
-  row.querySelector(".it_del").onclick = () => row.remove();
+      if(pref && pref.productId){
+        applyPid(pref.productId, false);
+        qtyInp.value = String(Math.max(1, Number(pref.qty || 1) || 1));
+        const p = prodById(pidInp.value);
+        if(pref.unitPrice !== undefined && pref.unitPrice !== null && String(pref.unitPrice) !== ""){
+          priceInp.value = String(Math.max(0, Number(pref.unitPrice) || 0));
+        }else{
+          priceInp.value = String(p ? effectivePrice(p) : 0);
+        }
+        syncThumb(p);
+      }else{
+        applyPid("", true);
+        priceInp.value = "0";
+      }
 
-  if(pref && pref.productId){
-    applyPid(pref.productId, false);
-    qtyInp.value = String(Math.max(1, Number(pref.qty || 1) || 1));
-    const p = prodById(pidInp.value);
-    if(pref.unitPrice !== undefined && pref.unitPrice !== null && String(pref.unitPrice) !== ""){
-      priceInp.value = String(Math.max(0, Number(pref.unitPrice) || 0));
-    }else{
-      priceInp.value = String(p ? effectivePrice(p) : 0);
-    }
-    syncThumb(p);
-  }else{
-    applyPid("", true);
-    priceInp.value = "0";
-  }
-
-  itemsRoot.appendChild(row);
-};
+      itemsRoot.appendChild(row);
+    };
 
     if(preItems && preItems.length){
       for(const it of preItems) addItemRow(it);
@@ -1556,26 +1714,70 @@ const addItemRow = (pref = {}) => {
         }
         if(!items.length) return;
 
+        const editingSale = (pre && pre.editSaleId) ? state.sales.find(x => String(x.id) === String(pre.editSaleId)) : null;
+        const beforeSale = editingSale ? JSON.parse(JSON.stringify(editingSale)) : null;
+
+        const available = new Map();
+        for(const p of state.doc.products || []){
+          available.set(String(p.id), Math.max(0, Number(p.stock || 0) || 0));
+        }
+        if(editingSale){
+          for(const oldIt of (editingSale.items || [])){
+            const pid = String(oldIt.productId || '');
+            if(!pid) continue;
+            available.set(pid, Math.max(0, Number(available.get(pid) || 0)) + Math.max(0, Number(oldIt.qty || 0) || 0));
+          }
+        }
+
+        const needByPid = new Map();
         for(const it of items){
           const p = prodById(it.productId);
           if(!p) return;
           if(p.status === 'soon') return;
-          if(p.stock < it.qty) return;
+          needByPid.set(String(it.productId), (needByPid.get(String(it.productId)) || 0) + Math.max(0, Number(it.qty || 0) || 0));
+        }
+
+        for(const [pid, needQty] of needByPid.entries()){
+          const p = prodById(pid);
+          const have = Math.max(0, Number(available.get(pid) || 0) || 0);
+          if(!p || have < needQty){
+            alert(`Nincs elég készlet ehhez: ${p ? prodLabel(p) : pid}`);
+            return;
+          }
+        }
+
+        if(editingSale){
+          for(const it of (editingSale.items || [])){
+            const p = prodById(it.productId);
+            if(!p) continue;
+            p.stock = Math.max(0, Number(p.stock || 0) + Number(it.qty || 0));
+            if(p.stock > 0 && p.status === 'out') p.status = 'ok';
+          }
         }
 
         for(const it of items){
           const p = prodById(it.productId);
-          p.stock = Math.max(0, p.stock - it.qty);
+          p.stock = Math.max(0, Number(p.stock || 0) - Number(it.qty || 0));
           if(p.stock <= 0) p.status = 'out';
         }
 
-        state.sales.push({
-          id: "s_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16),
-          date,
-          name,
-          payment,
-          items
-        });
+        let savedSale = null;
+        if(editingSale){
+          editingSale.date = date;
+          editingSale.name = name;
+          editingSale.payment = payment;
+          editingSale.items = items;
+          savedSale = JSON.parse(JSON.stringify(editingSale));
+        }else{
+          savedSale = {
+            id: "s_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16),
+            date,
+            name,
+            payment,
+            items
+          };
+          state.sales.push(savedSale);
+        }
 
         let soldReservation = null;
         if(pre && pre.fromReservationId){
@@ -1587,13 +1789,18 @@ const addItemRow = (pref = {}) => {
         closeModal();
         renderAll();
         markDirty({ products:true, sales:true, reservations: !!(pre && pre.fromReservationId) });
+
+        if(editingSale){
+          Promise.resolve(sendSaleDiscordUpdated(savedSale, beforeSale)).catch(console.error);
+        }else{
+          Promise.resolve(sendSaleDiscordCreated(savedSale)).catch(console.error);
+        }
         if(soldReservation){
           Promise.resolve(sendReservationDiscordClosed(soldReservation, 'Foglalás eladássá rögzítve')).catch(console.error);
         }
       }}
     ]);
   }
-
 
   function viewSale(id){
     const s = state.sales.find(x => x.id === id);
@@ -1766,6 +1973,12 @@ const addItemRow = (pref = {}) => {
     r.expiresAt = null;
     renderAll();
     markDirty({ reservations:true });
+    Promise.resolve(sendReservationDiscordActive(r, 'Foglalás megerősítve')).then((res)=>{
+      if(res?.messageId && String(r.discordMessageId || '') !== String(res.messageId)){
+        r.discordMessageId = String(res.messageId);
+        markDirty({ reservations:true });
+      }
+    }).catch(console.error);
   }
 
   function reservedByOthers(pid, excludeId){
@@ -1888,6 +2101,12 @@ const addRow = (pref) => {
         closeModal();
         renderAll();
         markDirty({ reservations:true });
+        Promise.resolve(sendReservationDiscordActive(r, 'Foglalás módosítva')).then((res)=>{
+          if(res?.messageId && String(r.discordMessageId || '') !== String(res.messageId)){
+            r.discordMessageId = String(res.messageId);
+            markDirty({ reservations:true });
+          }
+        }).catch(console.error);
       }}
     ]);
   }
@@ -1905,10 +2124,24 @@ const addRow = (pref) => {
       fromReservationId: r.id
     });
   }
+
+  function editSale(id){
+    const s = state.sales.find(x => String(x.id) === String(id));
+    if(!s) return;
+    openSaleModal({
+      title: `Eladás szerkesztése (${s.id})`,
+      date: String(s.date || todayISO()),
+      name: String(s.name || ''),
+      payment: String(s.payment || ''),
+      items: (s.items || []).map(it => ({ productId: it.productId, qty: it.qty, unitPrice: it.unitPrice })),
+      editSaleId: s.id
+    });
+  }
 function deleteSale(id){
     const idx = state.sales.findIndex(x => x.id === id);
     if(idx < 0) return;
     const s = state.sales[idx];
+    const deletedSale = JSON.parse(JSON.stringify(s));
 
     // rollback stock
     for(const it of s.items){
@@ -1921,6 +2154,7 @@ function deleteSale(id){
     state.sales.splice(idx, 1);
     renderAll();
     markDirty({ products:true, sales:true });
+    Promise.resolve(sendSaleDiscordDeleted(deletedSale)).catch(console.error);
   }
 
   function renderChartPanel(){

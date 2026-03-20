@@ -534,6 +534,10 @@
       }catch{ return ""; }
     }
 
+    function getDiscordWebhookBaseUrl(){
+      return getDiscordWebhookUrl().replace(/[?#].*$/, '').replace(/\/+$/, '');
+    }
+
     function findProductById(productId){
       return (state.productsDoc.products || []).find(p => String(p && p.id) === String(productId)) || null;
     }
@@ -560,22 +564,87 @@
       return { totalQty, totalSum, lines };
     }
 
-    async function postDiscordWebhook(payload){
-      const url = getDiscordWebhookUrl();
-      if(!url) return false;
-      const form = new FormData();
-      form.append("payload_json", JSON.stringify(payload));
+    async function discordWebhookRequest(method, url, payload){
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        credentials: "omit",
+        body: JSON.stringify(payload)
+      });
+      const txt = await res.text().catch(() => "");
+      let data = null;
+      try{ data = txt ? JSON.parse(txt) : null; }catch{ data = null; }
+      if(!res.ok){
+        const err = new Error((data && data.message) || `Discord webhook hiba (${res.status})`);
+        err.status = res.status;
+        err.data = data;
+        throw err;
+      }
+      return data;
+    }
+
+    async function postDiscordWebhook(payload, opts = {}){
+      const baseUrl = getDiscordWebhookBaseUrl();
+      if(!baseUrl) return null;
+      const wait = !!opts.wait;
+      const url = wait ? `${baseUrl}?wait=true` : baseUrl;
       try{
-        await fetch(url, {
-          method: "POST",
-          mode: "no-cors",
-          credentials: "omit",
-          keepalive: true,
-          body: form
-        });
+        return await discordWebhookRequest("POST", url, payload);
+      }catch(err){
+        if(wait){
+          console.warn("Discord webhook JSON send failed, fallback no-cors POST", err);
+        }else{
+          console.warn("Discord webhook JSON send failed", err);
+        }
+        const form = new FormData();
+        form.append("payload_json", JSON.stringify(payload));
+        try{
+          await fetch(baseUrl, {
+            method: "POST",
+            mode: "no-cors",
+            credentials: "omit",
+            keepalive: true,
+            body: form
+          });
+          return null;
+        }catch(err2){
+          console.warn("Discord webhook send failed", err2);
+          return null;
+        }
+      }
+    }
+
+    async function updateReservationRecord(reservation){
+      if(!reservation || !reservation.id) return false;
+      try{
+        await updateReservationViaApi(reservation.id, reservation);
         return true;
       }catch(err){
-        console.warn("Discord webhook send failed", err);
+        console.warn('Reservation API update failed, trying GitHub fallback', err);
+      }
+      const cfg = getWriteCfg();
+      if(!cfg) return false;
+      try{
+        const path = 'data/reservations.json';
+        const base = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}`;
+        const cur = await ghReq(cfg, 'GET', `${base}?ref=${encodeURIComponent(cfg.branch)}`);
+        const sha = cur.sha || null;
+        const raw = cur && cur.content ? atob(String(cur.content).replace(/\n/g,'')) : '[]';
+        const parsed = JSON.parse(raw || '[]');
+        const data = Array.isArray(parsed) ? parsed : [];
+        const idx = data.findIndex(x => String(x && x.id) === String(reservation.id));
+        if(idx < 0) return false;
+        data[idx] = { ...data[idx], ...reservation };
+        const body = {
+          message: 'Update reservation discord meta',
+          content: b64encode(JSON.stringify(data, null, 2)),
+          branch: cfg.branch,
+          sha
+        };
+        await ghReq(cfg, 'PUT', base, body);
+        return true;
+      }catch(err){
+        console.warn('GitHub reservation update failed', err);
         return false;
       }
     }
@@ -606,7 +675,7 @@
         }]
       };
 
-      return await postDiscordWebhook(payload);
+      return await postDiscordWebhook(payload, { wait:true });
     }
 
     function getWriteCfg(){
@@ -813,7 +882,14 @@
         rebuildReservedMap();
       }catch{}
 
-      try{ await sendReservationDiscordCreated(reservation); }catch{}
+      try{
+        const discordMsg = await sendReservationDiscordCreated(reservation);
+        const discordMessageId = String(discordMsg?.id || '').trim();
+        if(discordMessageId){
+          reservation.discordMessageId = discordMessageId;
+          try{ await updateReservationRecord(reservation); }catch{}
+        }
+      }catch{}
 
       state.cart = new Map();
       saveCart();
@@ -1156,6 +1232,7 @@
         confirmed: !!r.confirmed,
         modified: !!r.modified,
         modifiedAt: (typeof r.modifiedAt === "string") ? Date.parse(r.modifiedAt) : (Number(r.modifiedAt||0) || 0),
+        discordMessageId: String(r.discordMessageId || r.discord_message_id || ""),
         items
       };
     }).filter(r => r.id && r.items && r.items.length);
