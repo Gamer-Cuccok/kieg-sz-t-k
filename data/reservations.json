@@ -3,15 +3,18 @@
     "id": "r_mmy5jp00_iy050m",
     "publicCode": "413",
     "createdAt": 1773965988432,
-    "expiresAt": 1774138788432,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
+    "discordMessageId": "1484345690745339995",
     "items": [
       {
         "productId": "p_d44a935527ac98_19b5b68e535",
         "qty": 1,
-        "unitPrice": 6000
+        "unitPrice": 6000,
+        "unitPriceJD": null
       }
-    ],
-    "discordMessageId": "1484345690745339995"
+    ]
   }
 ]
