@@ -170,25 +170,18 @@
     localStorage.setItem(LS.resApi, cfg.resApi || "");
   }
 
-  async function getDiscordWebhookUrl(){
+  function getDiscordWebhookUrl(){
     try{
+      const direct = String(localStorage.getItem('sv_discord_webhook') || '').trim();
+      if(direct) return direct.replace(/\/+$/, '');
       const src = JSON.parse(localStorage.getItem('sv_source') || 'null');
-      const fromSource = String(src?.discordWebhook || src?.discord_webhook || '').trim();
-      if(fromSource) return fromSource.replace(/\/+$/,'');
-    }catch{}
-    try{
-      const r = await fetch(`data/sv_source.json?_=${Date.now()}`, { cache:'no-store' });
-      if(r.ok){
-        const j = await r.json();
-        const hook = String(j?.discordWebhook || j?.discord_webhook || '').trim();
-        if(hook) return hook.replace(/\/+$/,'');
-      }
-    }catch{}
-    return '';
+      const hook = String(src?.discordWebhook || src?.discord_webhook || '').trim();
+      return hook.replace(/\/+$/, '');
+    }catch{ return ''; }
   }
 
-  function fmtDiscordStrike(text){
-    const t = String(text == null ? '—' : text).trim() || '—';
+  function discordStrike(s){
+    const t = String(s == null ? '—' : s).trim() || '—';
     return `~~${t.replace(/~/g, '')}~~`;
   }
 
@@ -208,64 +201,47 @@
     return { totalQty, totalSum, lines };
   }
 
-  function reservationEditCount(r){
-    return Math.max(0, Number(r?.editCount ?? r?.editedCount ?? 0) || 0);
-  }
-
-  function reservationClosedMode(r){
-    if(r?.deleted) return 'deleted';
-    if(r?.recorded) return 'recorded';
-    return '';
-  }
-
-  function reservationActionText(r, fallback){
-    return String(r?.lastAction || fallback || 'Új foglalás érkezett');
-  }
-
-  function reservationEmbedColor(r){
+  function reservationDiscordColor(r){
     if(r?.deleted) return 0xef4444;
     if(r?.recorded) return 0x10b981;
-    if(r?.confirmed) return 0x22c55e;
     return 0xf59e0b;
   }
 
   function buildReservationDiscordPayload(r, actionText){
     const meta = reservationDiscordMeta(r);
     const publicCode = String(r?.publicCode || '---');
-    const latestAction = reservationActionText(r, actionText);
-    const editCount = reservationEditCount(r);
-    const closedMode = reservationClosedMode(r);
-    const strikeEverything = !!closedMode;
+    const editCount = Math.max(0, Number(r?.editCount || (r?.modified ? 1 : 0) || 0) || 0);
+    const closedMode = r?.deleted ? 'deleted' : (r?.recorded ? 'recorded' : '');
+    const strike = !!closedMode;
     const activeField = closedMode === 'deleted' ? 'Törölt?' : (closedMode === 'recorded' ? 'Rögzített?' : '');
-    const maybeStrike = (text, keep=false) => {
-      const raw = String(text == null || text === '' ? '—' : text);
-      return (strikeEverything && !keep) ? fmtDiscordStrike(raw) : raw;
+    const mapText = (txt, keep=false) => {
+      const raw = String(txt == null || txt === '' ? '—' : txt);
+      return strike && !keep ? discordStrike(raw) : raw;
     };
-    const makeField = (name, value, inline=true) => ({
-      name: maybeStrike(name, activeField === name),
-      value: maybeStrike(value, activeField === name),
+    const field = (name, value, inline=true) => ({
+      name: mapText(name, activeField === name),
+      value: mapText(value, activeField === name),
       inline
     });
     return {
-      content: `@everyone ${latestAction} • #${publicCode}`,
+      content: `@everyone ${String(actionText || 'Új foglalás érkezett')} • #${publicCode}`,
       allowed_mentions: { parse: ['everyone'] },
       embeds: [{
-        title: maybeStrike(`${latestAction}:`),
-        description: maybeStrike('Foglalás adatai'),
-        color: reservationEmbedColor(r),
+        title: mapText(`${String(actionText || 'Új foglalás érkezett')}:`),
+        color: reservationDiscordColor(r),
         timestamp: new Date().toISOString(),
         fields: [
-          makeField('Foglalás azonosító', `#${publicCode}`),
-          makeField('Összes darab', `${meta.totalQty} db`),
-          makeField('Végösszeg', fmtFt(meta.totalSum)),
-          makeField('Lejárat', r?.expiresAt ? new Date(Number(r.expiresAt)).toLocaleString('hu-HU') : '—'),
-          makeField('Tételek', meta.lines.length ? meta.lines.join('\n').slice(0, 1024) : '—', false),
-          makeField('Megerősített?', r?.confirmed ? 'Igen' : 'Nem'),
-          makeField('Szerkesztett?', editCount > 0 ? `${editCount}x` : 'Nem'),
-          makeField('Rögzített?', r?.recorded ? 'Igen' : 'Nem'),
-          makeField('Törölt?', r?.deleted ? 'Igen' : 'Nem')
+          field('Foglalás azonosító', `#${publicCode}`),
+          field('Összes darab', `${meta.totalQty} db`),
+          field('Végösszeg', fmtFt(meta.totalSum)),
+          field('Lejárat', r?.expiresAt ? new Date(Number(r.expiresAt)).toLocaleString('hu-HU') : '—'),
+          field('Tételek', meta.lines.length ? meta.lines.join('\n').slice(0, 1024) : '—', false),
+          field('Megerősített?', r?.confirmed ? 'Igen' : 'Nem'),
+          field('Szerkesztett?', editCount > 0 ? `${editCount}x` : 'Nem'),
+          field('Rögzített?', r?.recorded ? 'Igen' : 'Nem'),
+          field('Törölt?', r?.deleted ? 'Igen' : 'Nem')
         ],
-        footer: { text: maybeStrike('ShadowVapes • foglalás') }
+        footer: { text: mapText('ShadowVapes • foglalás') }
       }]
     };
   }
@@ -278,7 +254,7 @@
     });
     const txt = await res.text().catch(()=> '');
     let data = null;
-    try{ data = txt ? JSON.parse(txt) : null; }catch{ data = txt || null; }
+    try{ data = txt ? JSON.parse(txt) : null; }catch{ data = null; }
     if(!res.ok){
       const err = new Error((data && data.message) || `Discord webhook hiba (${res.status})`);
       err.status = res.status;
@@ -288,21 +264,21 @@
   }
 
   async function syncReservationDiscordMessage(reservation, actionText){
-    const baseUrl = await getDiscordWebhookUrl();
+    const baseUrl = getDiscordWebhookUrl();
     if(!baseUrl) return { ok:false, messageId:'' };
     const payload = buildReservationDiscordPayload(reservation, actionText);
     const currentId = String(reservation?.discordMessageId || '').trim();
     if(currentId){
       try{
-        const updated = await discordWebhookRequest('PATCH', `${baseUrl}/messages/${encodeURIComponent(currentId)}`, payload);
-        return { ok:true, messageId: currentId, updated:true, response: updated };
+        await discordWebhookRequest('PATCH', `${baseUrl}/messages/${encodeURIComponent(currentId)}`, payload);
+        return { ok:true, messageId: currentId, updated:true };
       }catch(err){
-        console.warn('Discord reservation patch failed, fallback create', err);
+        console.warn('Discord reservation patch failed', err);
       }
     }
     try{
       const created = await discordWebhookRequest('POST', `${baseUrl}?wait=true`, payload);
-      return { ok:true, messageId: String(created?.id || ''), created:true, response: created };
+      return { ok:true, messageId: String(created?.id || ''), created:true };
     }catch(err){
       console.warn('Discord reservation create failed', err);
       return { ok:false, messageId:'', error: err };
@@ -394,23 +370,7 @@ state.sales = state.sales.map(s => {
     date: String(s.date || s.day || s.createdAt || ""),
     name: s.name || "",
     payment: s.payment || s.method || "",
-    reservationDiscord: s.reservationDiscord && typeof s.reservationDiscord === 'object' ? {
-      id: String(s.reservationDiscord.id || ''),
-      publicCode: String(s.reservationDiscord.publicCode || ''),
-      createdAt: Number(s.reservationDiscord.createdAt || 0) || 0,
-      expiresAt: (s.reservationDiscord.expiresAt === null || s.reservationDiscord.expiresAt === undefined || s.reservationDiscord.expiresAt === '') ? null : (Number(s.reservationDiscord.expiresAt || 0) || null),
-      confirmed: !!s.reservationDiscord.confirmed,
-      editCount: Math.max(0, Number(s.reservationDiscord.editCount ?? 0) || 0),
-      recorded: !!s.reservationDiscord.recorded,
-      deleted: !!s.reservationDiscord.deleted,
-      lastAction: String(s.reservationDiscord.lastAction || ''),
-      discordMessageId: String(s.reservationDiscord.discordMessageId || ''),
-      items: Array.isArray(s.reservationDiscord.items) ? s.reservationDiscord.items.map(it => ({
-        productId: String(it.productId || ''),
-        qty: Math.max(1, Number(it.qty || 1) || 1),
-        unitPrice: Math.max(0, Number(it.unitPrice || 0) || 0)
-      })).filter(it => it.productId) : []
-    } : null,
+    fromReservationSnapshot: s.fromReservationSnapshot || s.fromReservation || null,
     items
   };
 }).filter(s => s.id);
@@ -456,11 +416,11 @@ state.sales = state.sales.map(s => {
         confirmed,
         modified: !!r.modified,
         modifiedAt: Number(r.modifiedAt || 0) || 0,
-        editCount: Math.max(0, Number(r.editCount ?? r.editedCount ?? 0) || 0),
+        editCount: Math.max(0, Number(r.editCount || r.editedCount || (r.modified ? 1 : 0) || 0) || 0),
         recorded: !!r.recorded,
         deleted: !!r.deleted,
-        lastAction: String(r.lastAction || ''),
         discordMessageId: String(r.discordMessageId || r.discord_message_id || ''),
+        lastAction: String(r.lastAction || ''),
         items
       });
     }
@@ -1636,7 +1596,7 @@ const addItemRow = (pref = {}) => {
           if(p.stock <= 0) p.status = 'out';
         }
 
-        const newSale = {
+        const saleRecord = {
           id: "s_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16),
           date,
           name,
@@ -1644,22 +1604,25 @@ const addItemRow = (pref = {}) => {
           items
         };
 
-        let soldReservation = null;
-        if(pre && pre.fromReservationId){
-          soldReservation = findReservation(pre.fromReservationId);
-          if(soldReservation){
-            newSale.reservationDiscord = JSON.parse(JSON.stringify({
-              ...soldReservation,
-              recorded: true,
-              deleted: false,
-              lastAction: 'Foglalás eladássá rögzítve'
-            }));
-          }
+        if(pre && pre.fromReservationSnapshot){
+          saleRecord.fromReservationSnapshot = JSON.parse(JSON.stringify(pre.fromReservationSnapshot));
         }
 
-        state.sales.push(newSale);
+        state.sales.push(saleRecord);
 
         if(pre && pre.fromReservationId){
+          const rr = findReservation(pre.fromReservationId);
+          if(rr){
+            rr.recorded = true;
+            rr.deleted = false;
+            rr.lastAction = 'Foglalás eladássá rögzítve';
+            Promise.resolve(syncReservationDiscordMessage(rr, 'Foglalás eladássá rögzítve')).then(res => {
+              if(res?.messageId && !rr.discordMessageId){
+                rr.discordMessageId = String(res.messageId);
+                markDirty({ reservations:true });
+              }
+            }).catch(()=>{});
+          }
           state.reservations = (state.reservations || []).filter(x => String(x.id) !== String(pre.fromReservationId));
           markDirty({ reservations:true });
         }
@@ -1667,19 +1630,6 @@ const addItemRow = (pref = {}) => {
         closeModal();
         renderAll();
         markDirty({ products:true, sales:true, reservations: !!(pre && pre.fromReservationId) });
-        if(soldReservation){
-          Promise.resolve(syncReservationDiscordMessage({
-            ...soldReservation,
-            recorded: true,
-            deleted: false,
-            lastAction: 'Foglalás eladássá rögzítve'
-          }, 'Foglalás eladássá rögzítve')).then(res => {
-            if(res?.messageId && newSale?.reservationDiscord && String(newSale.reservationDiscord.discordMessageId || '') !== String(res.messageId)){
-              newSale.reservationDiscord.discordMessageId = String(res.messageId);
-              markDirty({ sales:true });
-            }
-          }).catch(console.error);
-        }
       }}
     ]);
   }
@@ -1839,31 +1789,29 @@ const addItemRow = (pref = {}) => {
     return (state.reservations || []).find(r => String(r.id) === String(id));
   }
 
-  function deleteReservation(id){
+  async function deleteReservation(id){
     const r = findReservation(id);
     if(!r) return;
     if(!confirm('Biztos törlöd ezt a foglalást?')) return;
-    const snapshot = JSON.parse(JSON.stringify({ ...r, deleted:true, recorded:false, lastAction:'Foglalás törölve' }));
+    const forDiscord = { ...JSON.parse(JSON.stringify(r)), deleted:true, recorded:false, lastAction:'Foglalás törölve' };
+    try{ await syncReservationDiscordMessage(forDiscord, 'Foglalás törölve'); }catch{}
     state.reservations = (state.reservations || []).filter(x => String(x.id) !== String(id));
     renderAll();
     markDirty({ reservations:true });
-    Promise.resolve(syncReservationDiscordMessage(snapshot, 'Foglalás törölve')).catch(console.error);
   }
 
-  function confirmReservation(id){
+  async function confirmReservation(id){
     const r = findReservation(id);
     if(!r) return;
     r.confirmed = true;
     r.expiresAt = null;
     r.lastAction = 'Foglalás megerősítve';
+    try{
+      const res = await syncReservationDiscordMessage(r, 'Foglalás megerősítve');
+      if(res?.messageId && !r.discordMessageId) r.discordMessageId = String(res.messageId);
+    }catch{}
     renderAll();
     markDirty({ reservations:true });
-    Promise.resolve(syncReservationDiscordMessage(r, 'Foglalás megerősítve')).then(res => {
-      if(res?.messageId && String(r.discordMessageId || '') !== String(res.messageId)){
-        r.discordMessageId = String(res.messageId);
-        markDirty({ reservations:true });
-      }
-    }).catch(console.error);
   }
 
   function reservedByOthers(pid, excludeId){
@@ -1985,15 +1933,15 @@ const addRow = (pref) => {
         r.modifiedAt = Date.now();
         r.editCount = Math.max(0, Number(r.editCount || 0) || 0) + 1;
         r.lastAction = 'Foglalás szerkesztve';
-        closeModal();
-        renderAll();
-        markDirty({ reservations:true });
         Promise.resolve(syncReservationDiscordMessage(r, 'Foglalás szerkesztve')).then(res => {
-          if(res?.messageId && String(r.discordMessageId || '') !== String(res.messageId)){
+          if(res?.messageId && !r.discordMessageId){
             r.discordMessageId = String(res.messageId);
             markDirty({ reservations:true });
           }
-        }).catch(console.error);
+        }).catch(()=>{});
+        closeModal();
+        renderAll();
+        markDirty({ reservations:true });
       }}
     ]);
   }
@@ -2008,14 +1956,16 @@ const addRow = (pref) => {
       name: '',
       payment: '',
       items: preItems,
-      fromReservationId: r.id
+      fromReservationId: r.id,
+      fromReservationSnapshot: JSON.parse(JSON.stringify(r))
     });
   }
-function deleteSale(id){
+async function deleteSale(id){
     const idx = state.sales.findIndex(x => x.id === id);
     if(idx < 0) return;
     const s = state.sales[idx];
 
+    // rollback stock
     for(const it of s.items){
       const p = prodById(it.productId);
       if(!p) continue;
@@ -2023,19 +1973,9 @@ function deleteSale(id){
       if(p.stock > 0 && p.status === "out") p.status = "ok";
     }
 
-    const rollbackReservation = s.reservationDiscord ? JSON.parse(JSON.stringify({
-      ...s.reservationDiscord,
-      recorded: false,
-      deleted: false,
-      lastAction: 'Eladás rollbackelve'
-    })) : null;
-
     state.sales.splice(idx, 1);
     renderAll();
     markDirty({ products:true, sales:true });
-    if(rollbackReservation){
-      Promise.resolve(syncReservationDiscordMessage(rollbackReservation, 'Eladás rollbackelve')).catch(console.error);
-    }
   }
 
   function renderChartPanel(){
