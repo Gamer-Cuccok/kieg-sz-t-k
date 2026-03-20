@@ -1,45 +1,24 @@
 [
   {
-    "id": "r_mmy6iclv_54fj4y",
-    "publicCode": "602",
-    "createdAt": 1773967605331,
-    "expiresAt": 1774140405331,
+    "id": "r_mmy6k032_mo6p72",
+    "publicCode": "204",
+    "createdAt": 1773967682414,
+    "expiresAt": 1774140482414,
     "confirmed": false,
     "modified": false,
     "modifiedAt": 0,
     "editCount": 0,
     "recorded": false,
     "deleted": false,
-    "lastAction": "ÃÂj foglalÃÂ¡s ÃÂ©rkezett",
-    "discordMessageId": "",
-    "items": [
-      {
-        "productId": "p_7e90788f76589_19b6adc49b6",
-        "qty": 3,
-        "unitPrice": 6500,
-        "unitPriceJD": null
-      },
-      {
-        "productId": "p_a52ce38bb9b78_19cae8202a0",
-        "qty": 2,
-        "unitPrice": 6500,
-        "unitPriceJD": null
-      }
-    ]
-  },
-  {
-    "id": "r_mmy6k032_mo6p72",
-    "publicCode": "204",
-    "createdAt": 1773967682414,
-    "expiresAt": 1774140482414,
-    "confirmed": false,
+    "lastAction": "",
+    "discordMessageId": "1484352795653181501",
     "items": [
       {
         "productId": "p_6db677a6c8739_19b5bd13894",
         "qty": 1,
-        "unitPrice": 7000
+        "unitPrice": 7000,
+        "unitPriceJD": null
       }
-    ],
-    "discordMessageId": "1484352795653181501"
+    ]
   }
 ]
