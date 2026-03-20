@@ -3,8 +3,15 @@
     "id": "r_mmz3oyxt_ue7ab5",
     "publicCode": "954",
     "createdAt": 1774023341541,
-    "expiresAt": 1774196141541,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
+    "editCount": 0,
+    "recorded": false,
+    "deleted": false,
+    "discordMessageId": "",
+    "lastAction": "Foglalás megerősítve",
     "items": [
       {
         "productId": "p_4f4efd0510951_19b6ae36cba",
