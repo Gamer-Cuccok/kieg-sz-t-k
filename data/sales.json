@@ -1405,5 +1405,24 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_a95bd28cbac82_19d11cd2f6e",
+    "date": "2026-03-21",
+    "name": "B. Zs Tündinek",
+    "payment": "Még nincs",
+    "fromReservationSnapshot": null,
+    "items": [
+      {
+        "productId": "p_81909e3d929628_19c7af58890",
+        "qty": 1,
+        "unitPrice": 0
+      },
+      {
+        "productId": "p_4f4efd0510951_19b6ae36cba",
+        "qty": 1,
+        "unitPrice": 0
+      }
+    ]
   }
 ]
