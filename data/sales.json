@@ -1424,5 +1424,40 @@
         "unitPrice": 0
       }
     ]
+  },
+  {
+    "id": "s_cc2668f9d96a28_19d1646a1b1",
+    "date": "2026-03-22",
+    "name": "E. Tamás haverja",
+    "payment": "Vásárláskor",
+    "fromReservationSnapshot": {
+      "id": "r_mn1qn2o1_xccegj",
+      "publicCode": "394",
+      "createdAt": 1774182816578,
+      "expiresAt": null,
+      "confirmed": true,
+      "modified": false,
+      "modifiedAt": 0,
+      "editCount": 0,
+      "recorded": false,
+      "deleted": false,
+      "discordMessageId": "",
+      "lastAction": "Foglalás megerősítve",
+      "items": [
+        {
+          "productId": "p_ffc645ec0ef398_19b5b5ed5eb",
+          "qty": 2,
+          "unitPrice": 6000,
+          "unitPriceJD": null
+        }
+      ]
+    },
+    "items": [
+      {
+        "productId": "p_ffc645ec0ef398_19b5b5ed5eb",
+        "qty": 2,
+        "unitPrice": 6000
+      }
+    ]
   }
 ]
