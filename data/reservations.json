@@ -1,9 +1,9 @@
 [
   {
-    "id": "r_mn33ze2l_newnri",
-    "publicCode": "186",
-    "createdAt": 1774265692413,
-    "expiresAt": 1774438492413,
+    "id": "r_mn3hx5vi_277ww9",
+    "publicCode": "136",
+    "createdAt": 1774289103102,
+    "expiresAt": 1774461903102,
     "confirmed": false,
     "modified": false,
     "modifiedAt": 0,
@@ -11,20 +11,7 @@
     "recorded": false,
     "deleted": false,
     "discordMessageId": "",
-    "items": [
-      {
-        "productId": "p_4acea3da50f7e8_19c8a785fe0",
-        "qty": 1,
-        "unitPrice": 500
-      }
-    ]
-  },
-  {
-    "id": "r_mn3hx5vi_277ww9",
-    "publicCode": "136",
-    "createdAt": 1774289103102,
-    "expiresAt": 1774461903102,
-    "confirmed": false,
+    "lastAction": "",
     "items": [
       {
         "productId": "p_ffc645ec0ef398_19b5b5ed5eb",
@@ -46,21 +33,25 @@
     "recorded": false,
     "deleted": false,
     "discordMessageId": "",
+    "lastAction": "",
     "items": [
       {
         "productId": "p_c90c49f8b210b_19b5bcfc553",
         "qty": 1,
-        "unitPrice": 7000
+        "unitPrice": 7000,
+        "unitPriceJD": null
       },
       {
         "productId": "p_57933baaefbb_19b5bc81e53",
         "qty": 1,
-        "unitPrice": 7000
+        "unitPrice": 7000,
+        "unitPriceJD": null
       },
       {
         "productId": "p_0b0caf39ccc8_19c7b06f9d2",
         "qty": 1,
-        "unitPrice": 5000
+        "unitPrice": 5000,
+        "unitPriceJD": null
       }
     ]
   },
@@ -76,11 +67,13 @@
     "recorded": false,
     "deleted": false,
     "discordMessageId": "",
+    "lastAction": "",
     "items": [
       {
         "productId": "p_7e90788f76589_19b6adc49b6",
         "qty": 1,
-        "unitPrice": 6500
+        "unitPrice": 6500,
+        "unitPriceJD": null
       }
     ]
   }
