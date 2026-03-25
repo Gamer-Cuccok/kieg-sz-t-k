@@ -450,7 +450,7 @@
       "id": "p_7e90788f76589_19b6adc49b6",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 4,
+      "stock": 3,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -786,7 +786,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774462378491,
-    "updatedAt": "2026-03-25T18:12:58.491Z"
+    "rev": 1774465648349,
+    "updatedAt": "2026-03-25T19:07:28.349Z"
   }
 }
