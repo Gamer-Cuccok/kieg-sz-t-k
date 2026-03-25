@@ -527,141 +527,6 @@
       return await callReserveApi("reservation.update", { id, reservation });
     }
 
-    function getDiscordWebhookUrl(){
-      try{
-        if(state.discordWebhook) return String(state.discordWebhook).trim();
-        const direct = String(localStorage.getItem("sv_discord_webhook") || "").trim();
-        if(direct) return direct;
-        const src = JSON.parse(localStorage.getItem("sv_source") || "null");
-        const hook = String(src?.discordWebhook || src?.discord_webhook || "").trim();
-        return hook;
-      }catch{ return ""; }
-    }
-
-    function getDiscordWebhookBaseUrl(){
-      return getDiscordWebhookUrl().replace(/[?#].*$/, '').replace(/\/+$/, '');
-    }
-
-    function findProductById(productId){
-      return (state.productsDoc.products || []).find(p => String(p && p.id) === String(productId)) || null;
-    }
-
-    function strikeLine(s){
-      const t = String(s == null ? "—" : s).trim() || "—";
-      return `~~${t.replace(/~/g, "")}~~`;
-    }
-
-    function reservationDiscordMeta(reservation){
-      const items = Array.isArray(reservation?.items) ? reservation.items : [];
-      let totalQty = 0;
-      let totalSum = 0;
-      const lines = items.map(it => {
-        const qty = Math.max(0, Number(it?.qty || 0));
-        const unit = Math.max(0, Number(it?.unitPrice || 0));
-        const p = findProductById(it?.productId);
-        const label = p ? `${getName(p)}${getFlavor(p) ? " • " + getFlavor(p) : ""}` : String(it?.productId || "Ismeretlen termék");
-        const lineTotal = qty * unit;
-        totalQty += qty;
-        totalSum += lineTotal;
-        return `• ${label} — ${qty} db — ${fmtFt(lineTotal)}`;
-      });
-      return { totalQty, totalSum, lines };
-    }
-
-    function reservationDiscordColor(reservation){
-      if(reservation?.deleted) return 0xef4444;
-      if(reservation?.recorded) return 0x10b981;
-      return 0xf59e0b;
-    }
-
-    function buildReservationDiscordPayload(reservation, actionText){
-      const meta = reservationDiscordMeta(reservation);
-      const publicCode = String(reservation?.publicCode || '---');
-      const editCount = Math.max(0, Number(reservation?.editCount || 0) || 0);
-      const closedMode = reservation?.deleted ? 'deleted' : (reservation?.recorded ? 'recorded' : '');
-      const strike = !!closedMode;
-      const activeField = closedMode === 'deleted' ? 'Törölt?' : (closedMode === 'recorded' ? 'Rögzített?' : '');
-      const mapText = (txt, keep=false) => {
-        const raw = String(txt == null || txt === '' ? '—' : txt);
-        return strike && !keep ? strikeLine(raw) : raw;
-      };
-      const field = (name, value, inline=true) => ({
-        name: mapText(name, activeField === name),
-        value: mapText(value, activeField === name),
-        inline
-      });
-      return {
-        content: `@everyone ${String(actionText || 'Új foglalás érkezett')} • #${publicCode}`,
-        allowed_mentions: { parse: ['everyone'] },
-        embeds: [{
-          title: mapText(`${String(actionText || 'Új foglalás érkezett')}:`),
-          color: reservationDiscordColor(reservation),
-          timestamp: new Date().toISOString(),
-          fields: [
-            field('Foglalás azonosító', `#${publicCode}`),
-            field('Összes darab', `${meta.totalQty} db`),
-            field('Végösszeg', fmtFt(meta.totalSum)),
-            field('Lejárat', reservation?.expiresAt ? new Date(Number(reservation.expiresAt)).toLocaleString('hu-HU') : '—'),
-            field('Tételek', meta.lines.length ? meta.lines.join('\n').slice(0, 1024) : '—', false),
-            field('Megerősített?', reservation?.confirmed ? 'Igen' : 'Nem'),
-            field('Szerkesztett?', editCount > 0 ? `${editCount}x` : 'Nem'),
-            field('Rögzített?', reservation?.recorded ? 'Igen' : 'Nem'),
-            field('Törölt?', reservation?.deleted ? 'Igen' : 'Nem')
-          ],
-          footer: { text: mapText('ShadowVapes • foglalás') }
-        }]
-      };
-    }
-
-    async function discordWebhookRequest(method, url, payload, { noCorsFallback=false } = {}){
-      try{
-        const res = await fetch(url, {
-          method,
-          headers: { "Content-Type": "application/json" },
-          credentials: "omit",
-          body: JSON.stringify(payload)
-        });
-        const txt = await res.text().catch(() => "");
-        let data = null;
-        try{ data = txt ? JSON.parse(txt) : null; }catch{ data = null; }
-        if(!res.ok){
-          const err = new Error((data && data.message) || `Discord webhook hiba (${res.status})`);
-          err.status = res.status;
-          err.data = data;
-          throw err;
-        }
-        return data;
-      }catch(err){
-        if(!noCorsFallback) throw err;
-        const form = new FormData();
-        form.append('payload_json', JSON.stringify(payload));
-        await fetch(url.replace(/\?wait=true$/,''), { method:'POST', mode:'no-cors', credentials:'omit', keepalive:true, body: form });
-        return null;
-      }
-    }
-
-    async function syncReservationDiscordMessage(reservation, actionText){
-      const baseUrl = getDiscordWebhookBaseUrl();
-      if(!baseUrl) return { ok:false, messageId:'' };
-      const payload = buildReservationDiscordPayload(reservation, actionText);
-      const currentId = String(reservation?.discordMessageId || '').trim();
-      if(currentId){
-        try{
-          await discordWebhookRequest('PATCH', `${baseUrl}/messages/${encodeURIComponent(currentId)}`, payload);
-          return { ok:true, messageId: currentId, updated:true };
-        }catch(err){
-          console.warn('Discord reservation patch failed', err);
-        }
-      }
-      try{
-        const created = await discordWebhookRequest('POST', `${baseUrl}?wait=true`, payload, { noCorsFallback:true });
-        return { ok:true, messageId: String(created?.id || ''), created:true };
-      }catch(err){
-        console.warn('Discord reservation create failed', err);
-        return { ok:false, messageId:'', error: err };
-      }
-    }
-
     function getWriteCfg(){
       try{
         const token = String(localStorage.getItem('sv_token') || '').trim();
@@ -855,31 +720,20 @@
         createdAt,
         expiresAt,
         confirmed: false,
-        modified: false,
-        modifiedAt: 0,
         editCount: 0,
         recorded: false,
         deleted: false,
-        discordMessageId: "",
+        lastAction: 'Új foglalás érkezett',
         items: items.map(it => ({ productId: it.productId, qty: it.qty, unitPrice: it.unitPrice }))
       };
 
       await createReservationViaApi(reservation);
 
+
       try{
         state.reservations = [...(state.reservations||[]), reservation];
         state.reservationsHash = '';
         rebuildReservedMap();
-      }catch{}
-
-      try{
-        const discordRes = await syncReservationDiscordMessage(reservation, 'Új foglalás érkezett');
-        const discordMessageId = String(discordRes?.messageId || '').trim();
-        if(discordMessageId){
-          reservation.discordMessageId = discordMessageId;
-          try{ await updateReservationViaApi(reservation.id, reservation); }catch{}
-          try{ await updateReservationRecord(reservation); }catch{}
-        }
       }catch{}
 
       state.cart = new Map();
@@ -1043,15 +897,16 @@
     try {
       const cached = JSON.parse(localStorage.getItem("sv_source") || "null");
       if (cached && cached.owner && cached.repo && cached.branch) {
+        try{
+          const api = String(cached.reserveApi || cached.reserve_api || cached.reservationsApi || cached.reservations_api || cached.resApi || cached.res_api || localStorage.getItem("sv_res_api") || "").trim();
+          if(api){
+            state.reserveApi = api;
+            try{ localStorage.setItem("sv_res_api", api); }catch{}
+          }
+        }catch{}
         const ok = await validateSource(cached);
         if (ok) {
-          source = cached;
-          try{
-            const api = String(cached.reserveApi || cached.reserve_api || '').trim();
-            const hook = String(cached.discordWebhook || cached.discord_webhook || '').trim();
-            if(api){ state.reserveApi = api; try{ localStorage.setItem("sv_res_api", api); }catch{} }
-            if(hook){ state.discordWebhook = hook; try{ localStorage.setItem("sv_discord_webhook", hook); }catch{} }
-          }catch{}
+          source = { owner: cached.owner, repo: cached.repo, branch: cached.branch };
           return source;
         }
         try { localStorage.removeItem("sv_source"); } catch {}
@@ -1064,20 +919,16 @@
         const j = await r.json();
         if (j && j.owner && j.repo) {
           const br = String(j.branch || j.ref || "main").trim();
-          const api = String(j.reserveApi || j.reserve_api || j.reservationsApi || j.reservations_api || j.resApi || j.res_api || "").trim();
-          const hook = String(j.discordWebhook || j.discord_webhook || "").trim();
-          source = { owner: String(j.owner).trim(), repo: String(j.repo).trim(), branch: br, reserveApi: api, discordWebhook: hook };
+          source = { owner: String(j.owner).trim(), repo: String(j.repo).trim(), branch: br };
+          // ✅ Foglalás API (token nélküli mentéshez)
           try{
+            const api = String(j.reserveApi || j.reserve_api || j.reservationsApi || j.reservations_api || j.resApi || j.res_api || "").trim();
             if(api){
               state.reserveApi = api;
               try{ localStorage.setItem("sv_res_api", api); }catch{}
             }
-            if(hook){
-              state.discordWebhook = hook;
-              try{ localStorage.setItem("sv_discord_webhook", hook); }catch{}
-            }
           }catch{}
-          try { localStorage.setItem("sv_source", JSON.stringify(source)); } catch {}
+          try { localStorage.setItem("sv_source", JSON.stringify({ ...source, reserveApi: state.reserveApi || "" })); } catch {}
           return source;
         }
       }
@@ -1095,7 +946,7 @@
       try {
         const r = await fetch(testUrl, { cache: "no-store" });
         if (r.ok) {
-          source = { owner: or.owner, repo: or.repo, branch: br, reserveApi: state.reserveApi || '', discordWebhook: state.discordWebhook || '' };
+          source = { owner: or.owner, repo: or.repo, branch: br };
           try { localStorage.setItem("sv_source", JSON.stringify(source)); } catch {}
           return source;
         }
@@ -1212,11 +1063,11 @@
         confirmed: !!r.confirmed,
         modified: !!r.modified,
         modifiedAt: (typeof r.modifiedAt === "string") ? Date.parse(r.modifiedAt) : (Number(r.modifiedAt||0) || 0),
-        editCount: Math.max(0, Number(r.editCount || r.editedCount || (r.modified ? 1 : 0) || 0) || 0),
+        editCount: Math.max(0, Number(r.editCount ?? r.editedCount ?? 0) || 0),
         recorded: !!r.recorded,
         deleted: !!r.deleted,
-        discordMessageId: String(r.discordMessageId || r.discord_message_id || ""),
         lastAction: String(r.lastAction || ""),
+        discordMessageId: String(r.discordMessageId || r.discord_message_id || ""),
         items
       };
     }).filter(r => r.id && r.items && r.items.length);
