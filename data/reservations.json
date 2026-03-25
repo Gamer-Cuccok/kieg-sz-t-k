@@ -20,45 +20,5 @@
         "unitPriceJD": null
       }
     ]
-  },
-  {
-    "id": "r_mn69nvy7_u4abv7",
-    "publicCode": "965",
-    "createdAt": 1774456631935,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "discordMessageId": "",
-    "lastAction": "Foglalás megerősítve",
-    "items": [
-      {
-        "productId": "p_f93b7eb924ed1_19b4e156422",
-        "qty": 1,
-        "unitPrice": 5000,
-        "unitPriceJD": null
-      },
-      {
-        "productId": "p_2594e99cbade6_19b5bbdfc7a",
-        "qty": 1,
-        "unitPrice": 7000,
-        "unitPriceJD": null
-      },
-      {
-        "productId": "p_4b3ea070114908_19b5bc64622",
-        "qty": 3,
-        "unitPrice": 7000,
-        "unitPriceJD": null
-      },
-      {
-        "productId": "p_d1c0df1b50542_19c7aee39b0",
-        "qty": 2,
-        "unitPrice": 6500,
-        "unitPriceJD": null
-      }
-    ]
   }
 ]
