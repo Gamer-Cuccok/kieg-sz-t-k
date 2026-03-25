@@ -25,15 +25,15 @@
     "id": "r_mn69nvy7_u4abv7",
     "publicCode": "965",
     "createdAt": 1774456631935,
-    "expiresAt": 1774629431935,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
     "modified": false,
     "modifiedAt": 0,
     "editCount": 0,
     "recorded": false,
     "deleted": false,
     "discordMessageId": "",
-    "lastAction": "",
+    "lastAction": "Foglalás megerősítve",
     "items": [
       {
         "productId": "p_f93b7eb924ed1_19b4e156422",
