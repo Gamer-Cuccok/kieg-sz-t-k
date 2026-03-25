@@ -114,7 +114,7 @@
       "id": "p_f93b7eb924ed1_19b4e156422",
       "categoryId": "elf30",
       "status": "ok",
-      "stock": 3,
+      "stock": 2,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -258,7 +258,7 @@
       "id": "p_2594e99cbade6_19b5bbdfc7a",
       "categoryId": "elflush40",
       "status": "ok",
-      "stock": 5,
+      "stock": 4,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -306,7 +306,7 @@
       "id": "p_4b3ea070114908_19b5bc64622",
       "categoryId": "elflush40",
       "status": "ok",
-      "stock": 6,
+      "stock": 3,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -562,7 +562,7 @@
       "id": "p_d1c0df1b50542_19c7aee39b0",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 8,
+      "stock": 6,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -786,7 +786,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774195221932,
-    "updatedAt": "2026-03-22T16:00:21.932Z"
+    "rev": 1774458763512,
+    "updatedAt": "2026-03-25T17:12:43.512Z"
   }
 }
