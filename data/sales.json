@@ -4,7 +4,6 @@
     "date": "2025-12-29",
     "name": "T. Dani",
     "payment": "Aznap",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_2ff9b502a78a2_19b4e18a6e7",
@@ -18,7 +17,6 @@
     "date": "2026-01-03",
     "name": "Saját",
     "payment": "-",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_cdf4d9a12f296_19b4e11ef4e",
@@ -32,7 +30,6 @@
     "date": "2026-01-03",
     "name": "B. Roli Főnöke",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_568389f50aa19_19b4d718932",
@@ -51,7 +48,6 @@
     "date": "2026-01-03",
     "name": "E. Tamás és E. Viktor",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_bb90038d7199d8_19b4e1762ba",
@@ -75,7 +71,6 @@
     "date": "2026-01-03",
     "name": "T. Dani",
     "payment": "Aznap",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_cdf4d9a12f296_19b4e11ef4e",
@@ -89,7 +84,6 @@
     "date": "2026-01-04",
     "name": "Laci",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_cdf4d9a12f296_19b4e11ef4e",
@@ -108,7 +102,6 @@
     "date": "2026-01-07",
     "name": "T. Dani",
     "payment": "Aznap",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_c9b37b233bdb5_19b4dbb80eb",
@@ -132,7 +125,6 @@
     "date": "2026-01-07",
     "name": "Laci",
     "payment": "Aznap",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_568389f50aa19_19b4d718932",
@@ -146,7 +138,6 @@
     "date": "2026-01-08",
     "name": "Laci",
     "payment": "Aznap",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_f93b7eb924ed1_19b4e156422",
@@ -160,7 +151,6 @@
     "date": "2026-01-09",
     "name": "E. Tamás",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_cdf4d9a12f296_19b4e11ef4e",
@@ -174,7 +164,6 @@
     "date": "2026-01-09",
     "name": "B. Zsolt Munktársa",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_2ff9b502a78a2_19b4e18a6e7",
@@ -188,7 +177,6 @@
     "date": "2026-01-10",
     "name": "B. Roli Munkatársa",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_f93b7eb924ed1_19b4e156422",
@@ -202,7 +190,6 @@
     "date": "2026-01-12",
     "name": "E. Viktor",
     "payment": "Utalva",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_f93b7eb924ed1_19b4e156422",
@@ -216,7 +203,6 @@
     "date": "2026-01-03",
     "name": "Laci",
     "payment": "3-án fizeette",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_bb90038d7199d8_19b4e1762ba",
@@ -230,7 +216,6 @@
     "date": "2026-01-22",
     "name": "Szebi(dc)",
     "payment": "Foxpost Előre",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_4f4efd0510951_19b6ae36cba",
@@ -249,7 +234,6 @@
     "date": "2026-01-23",
     "name": "Márk (nem dc)",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_4f4efd0510951_19b6ae36cba",
@@ -268,7 +252,6 @@
     "date": "2026-01-23",
     "name": "E. Tamás",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_b862159bc3f608_19beb0c6380",
@@ -287,7 +270,6 @@
     "date": "2026-01-23",
     "name": "T. Dani",
     "payment": "Aznap",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_4f4efd0510951_19b6ae36cba",
@@ -301,7 +283,6 @@
     "date": "2026-01-24",
     "name": "B. Roli",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_441538bc936fa_19be641e8b6",
@@ -315,7 +296,6 @@
     "date": "2026-01-24",
     "name": "T. Dani",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_8a393a08657b48_19b6ad67348",
@@ -329,7 +309,6 @@
     "date": "2026-01-27",
     "name": "Saját",
     "payment": "-",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_4b3ea070114908_19b5bc64622",
@@ -348,7 +327,6 @@
     "date": "2026-01-27",
     "name": "S. Krisz",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_d44a935527ac98_19b5b68e535",
@@ -362,7 +340,6 @@
     "date": "2026-01-28",
     "name": "Szabi",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_8899c25f039f48_19beb1d7e76",
@@ -396,7 +373,6 @@
     "date": "2026-01-25",
     "name": "B. Geri haverja",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_b862159bc3f608_19beb0c6380",
@@ -410,7 +386,6 @@
     "date": "2026-01-30",
     "name": "Niki",
     "payment": "4db maradt neki",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_f528825b171d1_19b5b6659bb",
@@ -424,7 +399,6 @@
     "date": "2026-01-31",
     "name": "T. Dani",
     "payment": "Aznap",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_b862159bc3f608_19beb0c6380",
@@ -448,7 +422,6 @@
     "date": "2026-02-01",
     "name": "Laci",
     "payment": "a garanciált 2 elfbe letudjuk",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_bb90038d7199d8_19b4e1762ba",
@@ -462,7 +435,6 @@
     "date": "2026-01-31",
     "name": "T. Dani",
     "payment": "Aznap",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_8899c25f039f48_19beb1d7e76",
@@ -476,7 +448,6 @@
     "date": "2026-02-02",
     "name": "Tündi",
     "payment": "fogalta",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_8899c25f039f48_19beb1d7e76",
@@ -495,7 +466,6 @@
     "date": "2026-02-03",
     "name": "T. Dani",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_8a393a08657b48_19b6ad67348",
@@ -519,7 +489,6 @@
     "date": "2026-02-06",
     "name": "Márk (B. zsolt munkat.)",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_27f5bd691fa03_19b5b64ea4a",
@@ -533,7 +502,6 @@
     "date": "2026-02-06",
     "name": "Márk tesója (B. zsolt munkat.)",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_27f5bd691fa03_19b5b64ea4a",
@@ -547,7 +515,6 @@
     "date": "2026-02-06",
     "name": "B. Geri",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_9842bfea4d24c_19b5b637a59",
@@ -566,7 +533,6 @@
     "date": "2026-02-06",
     "name": "Niki",
     "payment": "Ajándék",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_6db677a6c8739_19b5bd13894",
@@ -580,7 +546,6 @@
     "date": "2026-02-08",
     "name": "B. Geri haverja",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_6db677a6c8739_19b5bd13894",
@@ -594,7 +559,6 @@
     "date": "2026-02-08",
     "name": "Saját",
     "payment": "-",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_8b084c694c4ac_19bffc068b4",
@@ -608,7 +572,6 @@
     "date": "2026-02-10",
     "name": "Szebi(dc)",
     "payment": "Garancia",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_8b084c694c4ac_19bffc068b4",
@@ -627,7 +590,6 @@
     "date": "2026-02-14",
     "name": "T. Dani",
     "payment": "Aznap",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_27f5bd691fa03_19b5b64ea4a",
@@ -641,7 +603,6 @@
     "date": "2026-02-11",
     "name": "E. Tamás & Viktor",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_9842bfea4d24c_19b5b637a59",
@@ -670,7 +631,6 @@
     "date": "2026-02-11",
     "name": "Zoli B. munktarása",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_9842bfea4d24c_19b5b637a59",
@@ -689,7 +649,6 @@
     "date": "2026-02-18",
     "name": "B. Roli",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_d44a935527ac98_19b5b68e535",
@@ -703,7 +662,6 @@
     "date": "2026-02-20",
     "name": "Erik",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_9842bfea4d24c_19b5b637a59",
@@ -722,7 +680,6 @@
     "date": "2026-02-21",
     "name": "Szabi",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_b862159bc3f608_19beb0c6380",
@@ -746,7 +703,6 @@
     "date": "2026-02-20",
     "name": "E. Tamás",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_d1c0df1b50542_19c7aee39b0",
@@ -765,7 +721,6 @@
     "date": "2026-02-22",
     "name": "T. Dani",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_b862159bc3f608_19beb0c6380",
@@ -779,7 +734,6 @@
     "date": "2026-02-23",
     "name": "E. Tamás",
     "payment": "Vásárláskor TB: 696",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_b862159bc3f608_19beb0c6380",
@@ -803,7 +757,6 @@
     "date": "2026-02-26",
     "name": "T. Dani",
     "payment": "Aznap",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_d1c0df1b50542_19c7aee39b0",
@@ -817,7 +770,6 @@
     "date": "2026-02-26",
     "name": "Szabi",
     "payment": "Vásárláskor(haverja)",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_4f4efd0510951_19b6ae36cba",
@@ -836,7 +788,6 @@
     "date": "2026-02-27",
     "name": "Szabi tesója",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_81909e3d929628_19c7af58890",
@@ -850,7 +801,6 @@
     "date": "2026-03-01",
     "name": "B. Geri haverja",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_d1c0df1b50542_19c7aee39b0",
@@ -864,7 +814,6 @@
     "date": "2026-03-02",
     "name": "Saját",
     "payment": "-",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_dff7056a3eded8_19cae7977fb",
@@ -878,7 +827,6 @@
     "date": "2026-03-02",
     "name": "Niki",
     "payment": "3 darab maradt neki (vap az a munkatársáé, fizetve másnap -)",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_bdf2876c776fe_19cae8d647b",
@@ -897,7 +845,6 @@
     "date": "2026-03-03",
     "name": "B. Zs munk. Zoli",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_7de60a56fee0d8_19cae6f3ed7",
@@ -911,7 +858,6 @@
     "date": "2026-03-05",
     "name": "E. Tamás",
     "payment": "Vásárláskor 13-mas Ákié",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_bdf2876c776fe_19cae8d647b",
@@ -930,7 +876,6 @@
     "date": "2026-03-05",
     "name": "T. Dani",
     "payment": "Aznap",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_bdf2876c776fe_19cae8d647b",
@@ -944,7 +889,6 @@
     "date": "2026-03-05",
     "name": "B. Roli",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_f711f17c5fdd3_19b6a7bed1f",
@@ -958,7 +902,6 @@
     "date": "2026-03-06",
     "name": "E. Tamás",
     "payment": "Vásárláskor (5-ös anyué)",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_03568182a15ac_19c7ae3aa7d",
@@ -977,7 +920,6 @@
     "date": "2026-03-07",
     "name": "Szabi",
     "payment": "Vásárláskor (13-mas Ákié)",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_bdf2876c776fe_19cae8d647b",
@@ -1001,7 +943,6 @@
     "date": "2026-03-07",
     "name": "E. Tamás haverja",
     "payment": "Vásárláskor (7-es anyué)",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_dff7056a3eded8_19cae7977fb",
@@ -1025,7 +966,6 @@
     "date": "2026-03-09",
     "name": "B. Geri haverja",
     "payment": "Vásárláskor (Ákié (Geri 1/10) )",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_dff7056a3eded8_19cae7977fb",
@@ -1039,7 +979,6 @@
     "date": "2026-03-10",
     "name": "E. Viktor",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_d1c0df1b50542_19c7aee39b0",
@@ -1053,7 +992,6 @@
     "date": "2026-03-10",
     "name": "T. Dani",
     "payment": "Aznap",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_91055a9de76e18_19b5b67c25f",
@@ -1072,7 +1010,6 @@
     "date": "2026-03-10",
     "name": "Balázs",
     "payment": "Vásárláskor (12-es anyué)",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_a52ce38bb9b78_19cae8202a0",
@@ -1086,7 +1023,6 @@
     "date": "2026-03-11",
     "name": "B. Zs Munk. Zoli (11-es Ákié)",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_bdf2876c776fe_19cae8d647b",
@@ -1105,7 +1041,6 @@
     "date": "2026-03-12",
     "name": "E. Tamás",
     "payment": "Vásárláskor (Anyué)",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_bdf2876c776fe_19cae8d647b",
@@ -1119,7 +1054,6 @@
     "date": "2026-02-24",
     "name": "B. Zs munkatársai",
     "payment": "Hitelre ( Fizetve: 03.10 és 03.12-án  )",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_03568182a15ac_19c7ae3aa7d",
@@ -1138,7 +1072,6 @@
     "date": "2026-03-14",
     "name": "B. Roli",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_96e473e02863_19b6a6106ac",
@@ -1152,7 +1085,6 @@
     "date": "2026-03-16",
     "name": "Szabi",
     "payment": "Vásárláskor (2db ákié)",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_7e90788f76589_19b6adc49b6",
@@ -1176,7 +1108,6 @@
     "date": "2026-03-16",
     "name": "Szabi",
     "payment": "Vásárláskor (2db anyué)",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_03568182a15ac_19c7ae3aa7d",
@@ -1195,7 +1126,6 @@
     "date": "2026-03-17",
     "name": "Saját",
     "payment": "-",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_0b0caf39ccc8_19c7b06f9d2",
@@ -1209,7 +1139,6 @@
     "date": "2026-03-17",
     "name": "Szabi",
     "payment": "Vásárláskor (8-as ákié, 13-mas anyué)",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_bdf2876c776fe_19cae8d647b",
@@ -1233,7 +1162,6 @@
     "date": "2026-03-17",
     "name": "E. Tamás",
     "payment": "Vásárláskor (1db anyué)",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_dff7056a3eded8_19cae7977fb",
@@ -1247,7 +1175,6 @@
     "date": "2026-03-17",
     "name": "T. Dani",
     "payment": "Aznap",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_bdf2876c776fe_19cae8d647b",
@@ -1261,7 +1188,6 @@
     "date": "2026-03-18",
     "name": "T. Dani",
     "payment": "Aznap",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_d44a935527ac98_19b5b68e535",
@@ -1280,7 +1206,6 @@
     "date": "2026-03-19",
     "name": "E. Tamás haverja",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_ffc645ec0ef398_19b5b5ed5eb",
@@ -1299,7 +1224,6 @@
     "date": "2026-03-19",
     "name": "Szabi",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_03568182a15ac_19c7ae3aa7d",
@@ -1313,7 +1237,6 @@
     "date": "2026-03-19",
     "name": "S. Krisz haverja",
     "payment": "Vásárláskor (4-es & 12-es ákié)",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_dff7056a3eded8_19cae7977fb",
@@ -1337,7 +1260,6 @@
     "date": "2026-03-19",
     "name": "S. Krisz haverja",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_f528825b171d1_19b5b6659bb",
@@ -1351,7 +1273,6 @@
     "date": "2026-03-19",
     "name": "Saját",
     "payment": "- dátum nem valid",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_cd734ed84b46d_19b5bc23e59",
@@ -1365,34 +1286,6 @@
     "date": "2026-03-20",
     "name": "T. Dani",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": {
-      "id": "r_mmz3oyxt_ue7ab5",
-      "publicCode": "954",
-      "createdAt": 1774023341541,
-      "expiresAt": null,
-      "confirmed": true,
-      "modified": false,
-      "modifiedAt": 0,
-      "editCount": 0,
-      "recorded": false,
-      "deleted": false,
-      "discordMessageId": "",
-      "lastAction": "Foglalás megerősítve",
-      "items": [
-        {
-          "productId": "p_4f4efd0510951_19b6ae36cba",
-          "qty": 1,
-          "unitPrice": 6500,
-          "unitPriceJD": 9500
-        },
-        {
-          "productId": "p_b862159bc3f608_19beb0c6380",
-          "qty": 1,
-          "unitPrice": 6500,
-          "unitPriceJD": 9500
-        }
-      ]
-    },
     "items": [
       {
         "productId": "p_4f4efd0510951_19b6ae36cba",
@@ -1411,7 +1304,6 @@
     "date": "2026-03-21",
     "name": "B. Zs Tündinek",
     "payment": "Még nincs",
-    "fromReservationSnapshot": null,
     "items": [
       {
         "productId": "p_81909e3d929628_19c7af58890",
@@ -1430,28 +1322,6 @@
     "date": "2026-03-22",
     "name": "E. Tamás haverja",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": {
-      "id": "r_mn1qn2o1_xccegj",
-      "publicCode": "394",
-      "createdAt": 1774182816578,
-      "expiresAt": null,
-      "confirmed": true,
-      "modified": false,
-      "modifiedAt": 0,
-      "editCount": 0,
-      "recorded": false,
-      "deleted": false,
-      "discordMessageId": "",
-      "lastAction": "Foglalás megerősítve",
-      "items": [
-        {
-          "productId": "p_ffc645ec0ef398_19b5b5ed5eb",
-          "qty": 2,
-          "unitPrice": 6000,
-          "unitPriceJD": null
-        }
-      ]
-    },
     "items": [
       {
         "productId": "p_ffc645ec0ef398_19b5b5ed5eb",
@@ -1465,56 +1335,11 @@
     "date": "2026-03-25",
     "name": "Szabi tesója",
     "payment": "Vásárláskor",
-    "fromReservationSnapshot": {
-      "id": "r_mn69nvy7_u4abv7",
-      "publicCode": "965",
-      "createdAt": 1774456631935,
-      "expiresAt": null,
-      "confirmed": true,
-      "modified": false,
-      "modifiedAt": 0,
-      "editCount": 0,
-      "recorded": false,
-      "deleted": false,
-      "discordMessageId": "",
-      "lastAction": "Foglalás megerősítve",
-      "items": [
-        {
-          "productId": "p_f93b7eb924ed1_19b4e156422",
-          "qty": 1,
-          "unitPrice": 5000,
-          "unitPriceJD": null
-        },
-        {
-          "productId": "p_2594e99cbade6_19b5bbdfc7a",
-          "qty": 1,
-          "unitPrice": 7000,
-          "unitPriceJD": null
-        },
-        {
-          "productId": "p_4b3ea070114908_19b5bc64622",
-          "qty": 3,
-          "unitPrice": 7000,
-          "unitPriceJD": null
-        },
-        {
-          "productId": "p_d1c0df1b50542_19c7aee39b0",
-          "qty": 2,
-          "unitPrice": 6500,
-          "unitPriceJD": null
-        }
-      ]
-    },
     "items": [
       {
         "productId": "p_f93b7eb924ed1_19b4e156422",
         "qty": 1,
         "unitPrice": 5000
-      },
-      {
-        "productId": "p_2594e99cbade6_19b5bbdfc7a",
-        "qty": 1,
-        "unitPrice": 7000
       },
       {
         "productId": "p_4b3ea070114908_19b5bc64622",
@@ -1525,6 +1350,11 @@
         "productId": "p_d1c0df1b50542_19c7aee39b0",
         "qty": 2,
         "unitPrice": 6500
+      },
+      {
+        "productId": "p_57933baaefbb_19b5bc81e53",
+        "qty": 1,
+        "unitPrice": 7000
       }
     ]
   }
