@@ -1260,6 +1260,7 @@ function renderProducts(){
           </div>
           <div style="display:flex;gap:10px;align-items:center;">
             <button class="ghost" data-view="${escapeHtml(s.id)}">Megnéz</button>
+            <button class="ghost" data-editsale="${escapeHtml(s.id)}">Szerkeszt</button>
             <button class="danger" data-delsale="${escapeHtml(s.id)}">Töröl (rollback)</button>
           </div>
         </div>
@@ -1289,6 +1290,9 @@ function renderProducts(){
 
     $("#panelSales").querySelectorAll("button[data-delsale]").forEach(b => {
       b.onclick = () => deleteSale(b.dataset.delsale);
+    });
+    $("#panelSales").querySelectorAll("button[data-editsale]").forEach(b => {
+      b.onclick = () => editSale(b.dataset.editsale);
     });
     $("#panelSales").querySelectorAll("button[data-view]").forEach(b => {
       b.onclick = () => viewSale(b.dataset.view);
@@ -1404,11 +1408,12 @@ function openProductPicker(opts = {}){
 }
 
   function openSaleModal(pre){
+    const editingSale = (pre && pre.id) ? state.sales.find(x => String(x.id) === String(pre.id)) : null;
     const preDate = (pre && pre.date) ? String(pre.date) : todayISO();
     const preName = (pre && pre.name) ? String(pre.name) : "";
     const prePay  = (pre && pre.payment) ? String(pre.payment) : "";
     const preItems = (pre && Array.isArray(pre.items)) ? pre.items : [];
-    const title = (pre && pre.title) ? String(pre.title) : "Új eladás";
+    const title = (pre && pre.title) ? String(pre.title) : (editingSale ? "Eladás szerkesztése" : "Új eladás");
 
     const body = document.createElement("div");
     body.innerHTML = `
@@ -1428,73 +1433,72 @@ function openProductPicker(opts = {}){
 
     const itemsRoot = body.querySelector("#s_items");
 
+    const addItemRow = (pref = {}) => {
+      const row = document.createElement("div");
+      row.className = "rowline table";
+      row.innerHTML = `
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;">
+          <img class="it-thumb" alt="" />
+          <button type="button" class="it-pick-btn it_pick">Válassz terméket…</button>
+          <input type="hidden" class="it_prod" value="">
+          <input class="it_qty" type="number" min="1" value="1" style="width:110px;">
+          <input class="it_price" type="number" min="0" value="0" style="width:150px;">
+          <button class="danger it_del" type="button">Töröl</button>
+        </div>
+      `;
 
-const addItemRow = (pref = {}) => {
-  const row = document.createElement("div");
-  row.className = "rowline table";
-  row.innerHTML = `
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;">
-      <img class="it-thumb" alt="" />
-      <button type="button" class="it-pick-btn it_pick">Válassz terméket…</button>
-      <input type="hidden" class="it_prod" value="">
-      <input class="it_qty" type="number" min="1" value="1" style="width:110px;">
-      <input class="it_price" type="number" min="0" value="0" style="width:150px;">
-      <button class="danger it_del" type="button">Töröl</button>
-    </div>
-  `;
+      const pidInp = row.querySelector(".it_prod");
+      const pickBtn = row.querySelector(".it_pick");
+      const qtyInp = row.querySelector(".it_qty");
+      const priceInp = row.querySelector(".it_price");
+      const thumb = row.querySelector(".it-thumb");
 
-  const pidInp = row.querySelector(".it_prod");
-  const pickBtn = row.querySelector(".it_pick");
-  const qtyInp = row.querySelector(".it_qty");
-  const priceInp = row.querySelector(".it_price");
-  const thumb = row.querySelector(".it-thumb");
+      const syncThumb = (p) => {
+        const img = p && (p.image || "").trim();
+        if(!thumb) return;
+        if(img){
+          thumb.src = img;
+          thumb.style.visibility = "visible";
+        }else{
+          thumb.removeAttribute("src");
+          thumb.style.visibility = "hidden";
+        }
+      };
 
-  const syncThumb = (p) => {
-    const img = p && (p.image || "").trim();
-    if(!thumb) return;
-    if(img){
-      thumb.src = img;
-      thumb.style.visibility = "visible";
-    }else{
-      thumb.removeAttribute("src");
-      thumb.style.visibility = "hidden";
-    }
-  };
+      const applyPid = (pid, setPrice = true) => {
+        pidInp.value = String(pid || "");
+        const p = prodById(pidInp.value);
+        pickBtn.textContent = p ? prodLabel(p) : "Válassz terméket…";
+        if(setPrice){
+          priceInp.value = String(p ? effectivePrice(p) : 0);
+        }
+        syncThumb(p);
+      };
 
-  const applyPid = (pid, setPrice = true) => {
-    pidInp.value = String(pid || "");
-    const p = prodById(pidInp.value);
-    pickBtn.textContent = p ? prodLabel(p) : "Válassz terméket…";
-    if(setPrice){
-      priceInp.value = String(p ? effectivePrice(p) : 0);
-    }
-    syncThumb(p);
-  };
+      pickBtn.onclick = async () => {
+        const pid = await openProductPicker({ title: "Válassz terméket" });
+        if(pid) applyPid(pid, true);
+      };
 
-  pickBtn.onclick = async () => {
-    const pid = await openProductPicker({ title: "Válassz terméket" });
-    if(pid) applyPid(pid, true);
-  };
+      row.querySelector(".it_del").onclick = () => row.remove();
 
-  row.querySelector(".it_del").onclick = () => row.remove();
+      if(pref && pref.productId){
+        applyPid(pref.productId, false);
+        qtyInp.value = String(Math.max(1, Number(pref.qty || 1) || 1));
+        const p = prodById(pidInp.value);
+        if(pref.unitPrice !== undefined && pref.unitPrice !== null && String(pref.unitPrice) !== ""){
+          priceInp.value = String(Math.max(0, Number(pref.unitPrice) || 0));
+        }else{
+          priceInp.value = String(p ? effectivePrice(p) : 0);
+        }
+        syncThumb(p);
+      }else{
+        applyPid("", true);
+        priceInp.value = "0";
+      }
 
-  if(pref && pref.productId){
-    applyPid(pref.productId, false);
-    qtyInp.value = String(Math.max(1, Number(pref.qty || 1) || 1));
-    const p = prodById(pidInp.value);
-    if(pref.unitPrice !== undefined && pref.unitPrice !== null && String(pref.unitPrice) !== ""){
-      priceInp.value = String(Math.max(0, Number(pref.unitPrice) || 0));
-    }else{
-      priceInp.value = String(p ? effectivePrice(p) : 0);
-    }
-    syncThumb(p);
-  }else{
-    applyPid("", true);
-    priceInp.value = "0";
-  }
-
-  itemsRoot.appendChild(row);
-};
+      itemsRoot.appendChild(row);
+    };
 
     if(preItems && preItems.length){
       for(const it of preItems) addItemRow(it);
@@ -1506,7 +1510,7 @@ const addItemRow = (pref = {}) => {
 
     openModal(title, "Név + dátum + mód + több termék", body, [
       { label:"Mégse", kind:"ghost", onClick: closeModal },
-      { label:"Mentés", kind:"primary", onClick: () => {
+      { label: editingSale ? "Mentés" : "Rögzítés", kind:"primary", onClick: () => {
         const date = ((document.querySelector('#s_date')?.value)||"").trim();
         const name = ((document.querySelector('#s_name')?.value)||"").trim();
         const payment = ((document.querySelector('#s_pay')?.value)||"").trim();
@@ -1523,26 +1527,56 @@ const addItemRow = (pref = {}) => {
         }
         if(!items.length) return;
 
+        const oldItems = Array.isArray(editingSale?.items) ? editingSale.items : [];
+        const oldQtyMap = new Map();
+        const newQtyMap = new Map();
+
+        for(const it of oldItems){
+          oldQtyMap.set(String(it.productId), (oldQtyMap.get(String(it.productId)) || 0) + Number(it.qty || 0));
+        }
         for(const it of items){
-          const p = prodById(it.productId);
+          newQtyMap.set(String(it.productId), (newQtyMap.get(String(it.productId)) || 0) + Number(it.qty || 0));
+        }
+
+        const touched = new Set([...oldQtyMap.keys(), ...newQtyMap.keys()]);
+        for(const pid of touched){
+          const p = prodById(pid);
           if(!p) return;
           if(p.status === 'soon') return;
-          if(p.stock < it.qty) return;
+          const delta = Number(newQtyMap.get(pid) || 0) - Number(oldQtyMap.get(pid) || 0);
+          if(delta > 0 && Number(p.stock || 0) < delta){
+            alert('Nincs elég raktárkészlet ehhez a módosításhoz.');
+            return;
+          }
         }
 
-        for(const it of items){
-          const p = prodById(it.productId);
-          p.stock = Math.max(0, p.stock - it.qty);
-          if(p.stock <= 0) p.status = 'out';
+        for(const pid of touched){
+          const p = prodById(pid);
+          if(!p) continue;
+          const delta = Number(newQtyMap.get(pid) || 0) - Number(oldQtyMap.get(pid) || 0);
+          p.stock = Math.max(0, Number(p.stock || 0) - delta);
+          if(p.stock <= 0){
+            p.stock = 0;
+            if(p.status !== "soon") p.status = "out";
+          }else if(p.status === "out"){
+            p.status = "ok";
+          }
         }
 
-        state.sales.push({
-          id: "s_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16),
-          date,
-          name,
-          payment,
-          items
-        });
+        if(editingSale){
+          editingSale.date = date;
+          editingSale.name = name;
+          editingSale.payment = payment;
+          editingSale.items = items;
+        }else{
+          state.sales.push({
+            id: "s_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16),
+            date,
+            name,
+            payment,
+            items
+          });
+        }
 
         if(pre && pre.fromReservationId){
           state.reservations = (state.reservations || []).filter(x => String(x.id) !== String(pre.fromReservationId));
@@ -1556,6 +1590,18 @@ const addItemRow = (pref = {}) => {
     ]);
   }
 
+  function editSale(id){
+    const s = state.sales.find(x => String(x.id) === String(id));
+    if(!s) return;
+    openSaleModal({
+      id: s.id,
+      title: "Eladás szerkesztése",
+      date: s.date,
+      name: s.name,
+      payment: s.payment,
+      items: (s.items || []).map(it => ({...it}))
+    });
+  }
 
   function viewSale(id){
     const s = state.sales.find(x => x.id === id);
