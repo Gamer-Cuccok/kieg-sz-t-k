@@ -29,6 +29,12 @@
       productsCat: "all",
       salesCat: "all",
       chartCat: "all",
+      chartAllFrom: "",
+      chartAllTo: "",
+      chartYear: "",
+      chartMonth: "",
+      chartWeek: "",
+      chartDay: "",
       productsSearch: "",
       salesSearch: ""
     }
@@ -114,6 +120,60 @@
     return String(s ?? "").replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
   }
 
+  function monthInputValue(dateLike){
+    const d = new Date(dateLike);
+    if(Number.isNaN(d.getTime())) return "";
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+  }
+
+  function startOfWeek(dateLike){
+    const d = new Date(dateLike);
+    if(Number.isNaN(d.getTime())) return new Date();
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setHours(0,0,0,0);
+    d.setDate(d.getDate() + diff);
+    return d;
+  }
+
+  function endOfWeek(dateLike){
+    const d = startOfWeek(dateLike);
+    d.setDate(d.getDate() + 6);
+    return d;
+  }
+
+  function endOfMonth(year, monthIndex){
+    return new Date(year, monthIndex + 1, 0);
+  }
+
+  function parseDateInput(value){
+    const s = String(value || "").slice(0,10);
+    if(!s) return null;
+    const d = new Date(`${s}T00:00:00`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  function getSalesDateBounds(){
+    const dates = (state.sales || []).map(s => String(s.date || "").slice(0,10)).filter(Boolean).sort();
+    const today = todayISO();
+    return {
+      min: dates[0] || today,
+      max: dates[dates.length - 1] || today
+    };
+  }
+
+  function initChartFilters(force = false){
+    const bounds = getSalesDateBounds();
+    const maxDate = parseDateInput(bounds.max) || new Date();
+
+    if(force || !state.filters.chartAllFrom) state.filters.chartAllFrom = bounds.min;
+    if(force || !state.filters.chartAllTo) state.filters.chartAllTo = bounds.max;
+    if(force || !state.filters.chartYear) state.filters.chartYear = String(maxDate.getFullYear());
+    if(force || !state.filters.chartMonth) state.filters.chartMonth = monthInputValue(maxDate);
+    if(force || !state.filters.chartWeek) state.filters.chartWeek = bounds.max;
+    if(force || !state.filters.chartDay) state.filters.chartDay = bounds.max;
+  }
+
   /* ---------- Cross-tab save lock (ugyanazon böngészőben) ---------- */
   const LOCK_KEY = "sv_save_lock";
   function readLock(){
@@ -143,31 +203,32 @@
   window.addEventListener("beforeunload", releaseLock);
 
 
-/* ---------- Settings ---------- */
-function getCfg(){
-  return {
-    owner: ($("#cfgOwner")?.value || "").trim(),
-    repo: ($("#cfgRepo")?.value || "").trim(),
-    branch: ($("#cfgBranch")?.value || "main").trim() || "main",
-    token: ($("#cfgToken")?.value || "").trim(),
-    resApi: ($("#cfgResApi")?.value || "").trim()
-  };
-}
-function loadCfg(){
-  const owner = localStorage.getItem(LS.owner) || "";
-  const repo = localStorage.getItem(LS.repo) || "";
-  const branch = localStorage.getItem(LS.branch) || "main";
-  const token = localStorage.getItem(LS.token) || "";
-  const resApi = localStorage.getItem(LS.resApi) || "";
-  return { owner, repo, branch, token, resApi };
-}
-function saveCfg(cfg){
-  localStorage.setItem(LS.owner, cfg.owner);
-  localStorage.setItem(LS.repo, cfg.repo);
-  localStorage.setItem(LS.branch, cfg.branch);
-  localStorage.setItem(LS.token, cfg.token);
-  localStorage.setItem(LS.resApi, cfg.resApi || "");
-}
+  /* ---------- Settings ---------- */
+  function getCfg(){
+    return {
+      owner: ($("#cfgOwner")?.value || "").trim(),
+      repo: ($("#cfgRepo")?.value || "").trim(),
+      branch: ($("#cfgBranch")?.value || "main").trim() || "main",
+      token: ($("#cfgToken")?.value || "").trim(),
+      resApi: ($("#cfgResApi")?.value || "").trim()
+    };
+  }
+  function loadCfg(){
+    const owner = localStorage.getItem(LS.owner) || "";
+    const repo = localStorage.getItem(LS.repo) || "";
+    const branch = localStorage.getItem(LS.branch) || "main";
+    const token = localStorage.getItem(LS.token) || "";
+    const resApi = localStorage.getItem(LS.resApi) || "";
+
+    return { owner, repo, branch, token, resApi };
+  }
+  function saveCfg(cfg){
+    localStorage.setItem(LS.owner, cfg.owner);
+    localStorage.setItem(LS.repo, cfg.repo);
+    localStorage.setItem(LS.branch, cfg.branch);
+    localStorage.setItem(LS.token, cfg.token);
+    localStorage.setItem(LS.resApi, cfg.resApi || "");
+  }
 
   /* ---------- Data logic ---------- */
   function normalizeDoc(){
@@ -254,7 +315,6 @@ state.sales = state.sales.map(s => {
     date: String(s.date || s.day || s.createdAt || ""),
     name: s.name || "",
     payment: s.payment || s.method || "",
-    fromReservationSnapshot: s.fromReservationSnapshot || s.fromReservation || null,
     items
   };
 }).filter(s => s.id);
@@ -300,11 +360,6 @@ state.sales = state.sales.map(s => {
         confirmed,
         modified: !!r.modified,
         modifiedAt: Number(r.modifiedAt || 0) || 0,
-        editCount: Math.max(0, Number(r.editCount ?? r.editedCount ?? (r.modified ? 1 : 0) ?? 0) || 0),
-        recorded: !!r.recorded,
-        deleted: !!r.deleted,
-        lastAction: String(r.lastAction || ""),
-        discordMessageId: String(r.discordMessageId || r.discord_message_id || ""),
         items
       });
     }
@@ -420,6 +475,7 @@ state.sales = state.sales.map(s => {
         state.shas.sales = s ? (s.sha || null) : null;
         state.shas.reservations = r ? (r.sha || null) : null;
         normalizeDoc();
+        initChartFilters(true);
         state.loaded = true;
         state.forceSourceSync = true;
 
@@ -587,6 +643,7 @@ if(wantReservations){
       })
     );
   }
+
 
 
   // ✅ sv_source.json (custom domain + telefon): a public oldal ebből találja meg a RAW forrást
@@ -1174,80 +1231,77 @@ function renderProducts(){
     syncStockLock();
   }
 
+  function renderSales(){
+    const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];
 
-function renderSales(){
-  const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];
+    const filterCat = state.filters.salesCat;
+    const q = (state.filters.salesSearch || "").toLowerCase();
 
-  const filterCat = state.filters.salesCat;
-  const q = (state.filters.salesSearch || "").toLowerCase();
+    let list = [...state.sales].sort((a,b)=> String(b.date).localeCompare(String(a.date)));
+    if(q){
+      list = list.filter(s => (`${s.name} ${s.payment}`).toLowerCase().includes(q));
+    }
+    if(filterCat !== "all"){
+      list = list.filter(s => saleTotals(s, filterCat).hit);
+    }
 
-  let list = [...state.sales].sort((a,b)=> String(b.date).localeCompare(String(a.date)));
-  if(q){
-    list = list.filter(s => (`${s.name} ${s.payment}`).toLowerCase().includes(q));
-  }
-  if(filterCat !== "all"){
-    list = list.filter(s => saleTotals(s, filterCat).hit);
-  }
+    const rows = list.map(s => {
+      const tot = saleTotals(s, filterCat);
+      const itemsCount = s.items.reduce((acc,it)=> acc + Number(it.qty||0), 0);
 
-  const rows = list.map(s => {
-    const tot = saleTotals(s, filterCat);
-    const itemsCount = (s.items || []).reduce((acc,it)=> acc + Number(it.qty||0), 0);
-
-    return `
-      <div class="rowline">
-        <div class="left">
-          <div style="font-weight:900;">
-            ${escapeHtml(s.date)} • ${escapeHtml(s.name || "—")}
-            <span class="small-muted">• ${escapeHtml(s.payment || "")}</span>
+      return `
+        <div class="rowline">
+          <div class="left">
+            <div style="font-weight:900;">
+              ${escapeHtml(s.date)} • ${escapeHtml(s.name || "—")}
+              <span class="small-muted">• ${escapeHtml(s.payment || "")}</span>
+            </div>
+            <div class="small-muted">Tételek: <b>${itemsCount}</b> • Bevétel: <b>${tot.revenue.toLocaleString("hu-HU")} Ft</b></div>
           </div>
-          <div class="small-muted">Tételek: <b>${itemsCount}</b> • Bevétel: <b>${tot.revenue.toLocaleString("hu-HU")} Ft</b></div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <button class="ghost" data-view="${escapeHtml(s.id)}">Megnéz</button>
+            <button class="danger" data-delsale="${escapeHtml(s.id)}">Töröl (rollback)</button>
+          </div>
         </div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
-          <button class="ghost" data-view="${escapeHtml(s.id)}">Megnéz</button>
-          <button class="ghost" data-editsale="${escapeHtml(s.id)}">Szerkeszt</button>
-          <button class="danger" data-delsale="${escapeHtml(s.id)}">Töröl (rollback)</button>
-        </div>
+      `;
+    }).join("");
+
+    $("#panelSales").innerHTML = `
+      <div class="admin-sales-embedwrap">
+        <iframe class="admin-sales-embed" src="./?sv_admin=1" loading="lazy" referrerpolicy="no-referrer"></iframe>
       </div>
+      ${renderReservationsSection()}
+      <div class=\"actions table" style="align-items:center;">
+        <button class="primary" id="btnAddSale">+ Eladás</button>
+        <select id="salesCat">
+          ${cats.map(c => `<option value="${escapeHtml(c.id)}"${c.id===filterCat?" selected":""}>${escapeHtml(c.label)}</option>`).join("")}
+        </select>
+        <input id="salesSearch" placeholder="Keresés név / mód szerint..." value="${escapeHtml(state.filters.salesSearch)}" style="flex:1;min-width:220px;">
+        <div class="small-muted">Szűrés kategóriára: csak az adott kategória tételeit számolja.</div>
+      </div>
+      <div style="margin-top:10px;">${rows || `<div class="small-muted">Nincs eladás.</div>`}</div>
     `;
-  }).join("");
 
-  $("#panelSales").innerHTML = `
-    <div class="admin-sales-embedwrap">
-      <iframe class="admin-sales-embed" src="./?sv_admin=1" loading="lazy" referrerpolicy="no-referrer"></iframe>
-    </div>
-    ${renderReservationsSection()}
-    <div class="actions table" style="align-items:center;">
-      <button class="primary" id="btnAddSale">+ Eladás</button>
-      <select id="salesCat">
-        ${cats.map(c => `<option value="${escapeHtml(c.id)}"${c.id===filterCat?" selected":""}>${escapeHtml(c.label)}</option>`).join("")}
-      </select>
-      <input id="salesSearch" placeholder="Keresés név / mód szerint..." value="${escapeHtml(state.filters.salesSearch)}" style="flex:1;min-width:220px;">
-      <div class="small-muted">Szűrés kategóriára: csak az adott kategória tételeit számolja.</div>
-    </div>
-    <div style="margin-top:10px;">${rows || `<div class="small-muted">Nincs eladás.</div>`}</div>
-  `;
+    $("#salesCat").onchange = () => { state.filters.salesCat = $("#salesCat").value; renderSales(); drawChart(); };
+    $("#salesSearch").oninput = () => { state.filters.salesSearch = $("#salesSearch").value; renderSales(); };
 
-  $("#salesCat").onchange = () => { state.filters.salesCat = $("#salesCat").value; renderSales(); drawChart(); };
-  $("#salesSearch").oninput = () => { state.filters.salesSearch = $("#salesSearch").value; renderSales(); };
-  $("#btnAddSale").onclick = () => openSaleModal();
+    $("#btnAddSale").onclick = () => openSaleModal();
 
-  $("#panelSales").querySelectorAll("button[data-delsale]").forEach(b => {
-    b.onclick = () => deleteSale(b.dataset.delsale);
-  });
-  $("#panelSales").querySelectorAll("button[data-editsale]").forEach(b => {
-    b.onclick = () => editSale(b.dataset.editsale);
-  });
-  $("#panelSales").querySelectorAll("button[data-view]").forEach(b => {
-    b.onclick = () => viewSale(b.dataset.view);
-  });
+    $("#panelSales").querySelectorAll("button[data-delsale]").forEach(b => {
+      b.onclick = () => deleteSale(b.dataset.delsale);
+    });
+    $("#panelSales").querySelectorAll("button[data-view]").forEach(b => {
+      b.onclick = () => viewSale(b.dataset.view);
+    });
 
-  $("#panelSales").querySelectorAll("button[data-res-del]").forEach(b=>{ b.onclick = () => deleteReservation(b.dataset.resDel); });
-  $("#panelSales").querySelectorAll("button[data-res-confirm]").forEach(b=>{ b.onclick = () => confirmReservation(b.dataset.resConfirm); });
-  $("#panelSales").querySelectorAll("button[data-res-edit]").forEach(b=>{ b.onclick = () => openReservationEditModal(b.dataset.resEdit); });
-  $("#panelSales").querySelectorAll("button[data-res-sale]").forEach(b=>{ b.onclick = () => saleFromReservation(b.dataset.resSale); });
+    // reservation handlers
+    $("#panelSales").querySelectorAll("button[data-res-del]").forEach(b=>{ b.onclick = () => deleteReservation(b.dataset.resDel); });
+    $("#panelSales").querySelectorAll("button[data-res-confirm]").forEach(b=>{ b.onclick = () => confirmReservation(b.dataset.resConfirm); });
+    $("#panelSales").querySelectorAll("button[data-res-edit]").forEach(b=>{ b.onclick = () => openReservationEditModal(b.dataset.resEdit); });
+    $("#panelSales").querySelectorAll("button[data-res-sale]").forEach(b=>{ b.onclick = () => saleFromReservation(b.dataset.resSale); });
 
-  startReservationTicker();
-}
+    startReservationTicker();
+  }
 
 
 function prodLabel(p){
@@ -1349,196 +1403,161 @@ function openProductPicker(opts = {}){
   });
 }
 
+  function openSaleModal(pre){
+    const preDate = (pre && pre.date) ? String(pre.date) : todayISO();
+    const preName = (pre && pre.name) ? String(pre.name) : "";
+    const prePay  = (pre && pre.payment) ? String(pre.payment) : "";
+    const preItems = (pre && Array.isArray(pre.items)) ? pre.items : [];
+    const title = (pre && pre.title) ? String(pre.title) : "Új eladás";
 
-function openSaleModal(pre){
-  const editingSaleId = (pre && pre.editSaleId) ? String(pre.editSaleId) : "";
-  const existingSale = editingSaleId ? state.sales.find(x => String(x.id) === editingSaleId) : null;
-
-  const preDate = (pre && pre.date) ? String(pre.date) : todayISO();
-  const preName = (pre && pre.name) ? String(pre.name) : "";
-  const prePay  = (pre && pre.payment) ? String(pre.payment) : "";
-  const preItems = (pre && Array.isArray(pre.items)) ? pre.items : [];
-  const title = (pre && pre.title) ? String(pre.title) : (existingSale ? "Eladás szerkesztése" : "Új eladás");
-
-  const body = document.createElement("div");
-  body.innerHTML = `
-    <div class="grid2">
-      <div class="field"><label>Dátum (YYYY-MM-DD)</label><input id="s_date" type="text" value="${escapeHtml(preDate)}"></div>
-      <div class="field"><label>Név (opcionális)</label><input id="s_name" type="text" value="${escapeHtml(preName)}"></div>
-    </div>
-    <div class="field" style="margin-top:10px;"><label>Fizetési mód (opcionális)</label><input id="s_pay" type="text" value="${escapeHtml(prePay)}"></div>
-    <div class="field" style="margin-top:10px;">
-      <label>Tételek</label>
-      <div id="s_items"></div>
-    </div>
-    <div class="actions">
-      <button class="ghost" id="btnAddItem" type="button">+ Tétel</button>
-    </div>
-  `;
-
-  const itemsRoot = body.querySelector("#s_items");
-
-  const addItemRow = (pref = {}) => {
-    const row = document.createElement("div");
-    row.className = "rowline table";
-    row.innerHTML = `
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;">
-        <img class="it-thumb" alt="" />
-        <button type="button" class="it-pick-btn it_pick">Válassz terméket…</button>
-        <input type="hidden" class="it_prod" value="">
-        <input class="it_qty" type="number" min="1" value="1" style="width:110px;">
-        <input class="it_price" type="number" min="0" value="0" style="width:150px;">
-        <button class="danger it_del" type="button">Töröl</button>
+    const body = document.createElement("div");
+    body.innerHTML = `
+      <div class="grid2">
+        <div class="field"><label>Dátum (YYYY-MM-DD)</label><input id="s_date" type="text" value="${escapeHtml(preDate)}"></div>
+        <div class="field"><label>Név (opcionális)</label><input id="s_name" type="text" value="${escapeHtml(preName)}"></div>
+      </div>
+      <div class="field" style="margin-top:10px;"><label>Fizetési mód (opcionális)</label><input id="s_pay" type="text" value="${escapeHtml(prePay)}"></div>
+      <div class="field" style="margin-top:10px;">
+        <label>Tételek</label>
+        <div id="s_items"></div>
+      </div>
+      <div class="actions">
+        <button class="ghost" id="btnAddItem">+ Tétel</button>
       </div>
     `;
 
-    const pidInp = row.querySelector(".it_prod");
-    const pickBtn = row.querySelector(".it_pick");
-    const qtyInp = row.querySelector(".it_qty");
-    const priceInp = row.querySelector(".it_price");
-    const thumb = row.querySelector(".it-thumb");
+    const itemsRoot = body.querySelector("#s_items");
 
-    const syncThumb = (p) => {
-      const img = p && (p.image || "").trim();
-      if(!thumb) return;
-      if(img){
-        thumb.src = img;
-        thumb.style.visibility = "visible";
-      }else{
-        thumb.removeAttribute("src");
-        thumb.style.visibility = "hidden";
-      }
-    };
 
-    const applyPid = (pid, setPrice = true) => {
-      pidInp.value = String(pid || "");
-      const p = prodById(pidInp.value);
-      pickBtn.textContent = p ? prodLabel(p) : "Válassz terméket…";
-      if(setPrice){
-        priceInp.value = String(p ? effectivePrice(p) : 0);
-      }
-      syncThumb(p);
-    };
+const addItemRow = (pref = {}) => {
+  const row = document.createElement("div");
+  row.className = "rowline table";
+  row.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;">
+      <img class="it-thumb" alt="" />
+      <button type="button" class="it-pick-btn it_pick">Válassz terméket…</button>
+      <input type="hidden" class="it_prod" value="">
+      <input class="it_qty" type="number" min="1" value="1" style="width:110px;">
+      <input class="it_price" type="number" min="0" value="0" style="width:150px;">
+      <button class="danger it_del" type="button">Töröl</button>
+    </div>
+  `;
 
-    pickBtn.onclick = async () => {
-      const pid = await openProductPicker({ title: "Válassz terméket" });
-      if(pid) applyPid(pid, true);
-    };
+  const pidInp = row.querySelector(".it_prod");
+  const pickBtn = row.querySelector(".it_pick");
+  const qtyInp = row.querySelector(".it_qty");
+  const priceInp = row.querySelector(".it_price");
+  const thumb = row.querySelector(".it-thumb");
 
-    row.querySelector(".it_del").onclick = () => row.remove();
-
-    if(pref && pref.productId){
-      applyPid(pref.productId, false);
-      qtyInp.value = String(Math.max(1, Number(pref.qty || 1) || 1));
-      const p = prodById(pidInp.value);
-      if(pref.unitPrice !== undefined && pref.unitPrice !== null && String(pref.unitPrice) !== ""){
-        priceInp.value = String(Math.max(0, Number(pref.unitPrice) || 0));
-      }else{
-        priceInp.value = String(p ? effectivePrice(p) : 0);
-      }
-      syncThumb(p);
+  const syncThumb = (p) => {
+    const img = p && (p.image || "").trim();
+    if(!thumb) return;
+    if(img){
+      thumb.src = img;
+      thumb.style.visibility = "visible";
     }else{
-      applyPid("", true);
-      priceInp.value = "0";
+      thumb.removeAttribute("src");
+      thumb.style.visibility = "hidden";
     }
-
-    itemsRoot.appendChild(row);
   };
 
-  if(preItems && preItems.length){
-    for(const it of preItems) addItemRow(it);
+  const applyPid = (pid, setPrice = true) => {
+    pidInp.value = String(pid || "");
+    const p = prodById(pidInp.value);
+    pickBtn.textContent = p ? prodLabel(p) : "Válassz terméket…";
+    if(setPrice){
+      priceInp.value = String(p ? effectivePrice(p) : 0);
+    }
+    syncThumb(p);
+  };
+
+  pickBtn.onclick = async () => {
+    const pid = await openProductPicker({ title: "Válassz terméket" });
+    if(pid) applyPid(pid, true);
+  };
+
+  row.querySelector(".it_del").onclick = () => row.remove();
+
+  if(pref && pref.productId){
+    applyPid(pref.productId, false);
+    qtyInp.value = String(Math.max(1, Number(pref.qty || 1) || 1));
+    const p = prodById(pidInp.value);
+    if(pref.unitPrice !== undefined && pref.unitPrice !== null && String(pref.unitPrice) !== ""){
+      priceInp.value = String(Math.max(0, Number(pref.unitPrice) || 0));
+    }else{
+      priceInp.value = String(p ? effectivePrice(p) : 0);
+    }
+    syncThumb(p);
   }else{
-    addItemRow();
+    applyPid("", true);
+    priceInp.value = "0";
   }
 
-  body.querySelector("#btnAddItem").onclick = () => addItemRow();
+  itemsRoot.appendChild(row);
+};
 
-  openModal(title, "Név + dátum + mód + több termék", body, [
-    { label:"Mégse", kind:"ghost", onClick: closeModal },
-    { label:"Mentés", kind:"primary", onClick: () => {
-      const date = ((document.querySelector('#s_date')?.value)||"").trim();
-      const name = ((document.querySelector('#s_name')?.value)||"").trim();
-      const payment = ((document.querySelector('#s_pay')?.value)||"").trim();
-      if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+    if(preItems && preItems.length){
+      for(const it of preItems) addItemRow(it);
+    }else{
+      addItemRow();
+    }
 
-      const rows = [...itemsRoot.querySelectorAll('.rowline')];
-      const items = [];
-      for(const r of rows){
-        const pid = r.querySelector('.it_prod').value;
-        if(!pid) continue;
-        const qty = Math.max(1, Number(r.querySelector('.it_qty').value || 1) || 1);
-        const unitPrice = Math.max(0, Number(r.querySelector('.it_price').value || 0) || 0);
-        items.push({ productId: pid, qty, unitPrice });
-      }
-      if(!items.length) return;
+    body.querySelector("#btnAddItem").onclick = () => addItemRow();
 
-      const workingStock = new Map(state.doc.products.map(p => [String(p.id), Number(p.stock || 0)]));
-      if(existingSale){
-        for(const old of (existingSale.items || [])){
-          const prev = Number(workingStock.get(String(old.productId)) || 0);
-          workingStock.set(String(old.productId), prev + Math.max(0, Number(old.qty || 0) || 0));
+    openModal(title, "Név + dátum + mód + több termék", body, [
+      { label:"Mégse", kind:"ghost", onClick: closeModal },
+      { label:"Mentés", kind:"primary", onClick: () => {
+        const date = ((document.querySelector('#s_date')?.value)||"").trim();
+        const name = ((document.querySelector('#s_name')?.value)||"").trim();
+        const payment = ((document.querySelector('#s_pay')?.value)||"").trim();
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+
+        const rows = [...itemsRoot.querySelectorAll('.rowline')];
+        const items = [];
+        for(const r of rows){
+          const pid = r.querySelector('.it_prod').value;
+          if(!pid) continue;
+          const qty = Math.max(1, Number(r.querySelector('.it_qty').value || 1) || 1);
+          const unitPrice = Math.max(0, Number(r.querySelector('.it_price').value || 0) || 0);
+          items.push({ productId: pid, qty, unitPrice });
         }
-      }
+        if(!items.length) return;
 
-      for(const it of items){
-        const p = prodById(it.productId);
-        if(!p) return;
-        if(p.status === 'soon') return;
-        const available = Number(workingStock.get(String(it.productId)) || 0);
-        if(available < it.qty){
-          alert('Nincs elég készlet ehhez a mentéshez.');
-          return;
+        for(const it of items){
+          const p = prodById(it.productId);
+          if(!p) return;
+          if(p.status === 'soon') return;
+          if(p.stock < it.qty) return;
         }
-        workingStock.set(String(it.productId), available - it.qty);
-      }
 
-      if(existingSale){
-        for(const old of (existingSale.items || [])){
-          const p = prodById(old.productId);
-          if(!p) continue;
-          p.stock = Math.max(0, Number(p.stock || 0) + Math.max(0, Number(old.qty || 0) || 0));
-          if(p.stock > 0 && p.status === 'out') p.status = 'ok';
+        for(const it of items){
+          const p = prodById(it.productId);
+          p.stock = Math.max(0, p.stock - it.qty);
+          if(p.stock <= 0) p.status = 'out';
         }
-      }
 
-      for(const it of items){
-        const p = prodById(it.productId);
-        if(!p) continue;
-        p.stock = Math.max(0, Number(p.stock || 0) - it.qty);
-        p.status = p.stock <= 0 ? 'out' : 'ok';
-      }
-
-      if(existingSale){
-        existingSale.date = date;
-        existingSale.name = name;
-        existingSale.payment = payment;
-        existingSale.items = items;
-        existingSale.updatedAt = Date.now();
-      }else{
-        const saleRecord = {
+        state.sales.push({
           id: "s_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16),
           date,
           name,
           payment,
-          items,
-          createdAt: Date.now()
-        };
-        state.sales.push(saleRecord);
+          items
+        });
 
         if(pre && pre.fromReservationId){
           state.reservations = (state.reservations || []).filter(x => String(x.id) !== String(pre.fromReservationId));
           markDirty({ reservations:true });
         }
-      }
 
-      closeModal();
-      renderAll();
-      markDirty({ products:true, sales:true, reservations: !!(pre && pre.fromReservationId) });
-    }}
-  ]);
-}
+        closeModal();
+        renderAll();
+        markDirty({ products:true, sales:true, reservations: !!(pre && pre.fromReservationId) });
+      }}
+    ]);
+  }
 
-function viewSale(id){
+
+  function viewSale(id){
     const s = state.sales.find(x => x.id === id);
     if(!s) return;
 
@@ -1609,7 +1628,7 @@ function viewSale(id){
 
   function renderReservationsSection(){
     const list = (state.reservations || [])
-      .filter(r => r && !r.recorded && !r.deleted && (r.confirmed || !isReservationExpired(r)))
+      .filter(r => r && (r.confirmed || !isReservationExpired(r)))
       .sort((a,b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
 
     if(!list.length){
@@ -1692,28 +1711,25 @@ function viewSale(id){
     return (state.reservations || []).find(r => String(r.id) === String(id));
   }
 
+  function deleteReservation(id){
+    const r = findReservation(id);
+    if(!r) return;
+    if(!confirm('Biztos törlöd ezt a foglalást?')) return;
+    state.reservations = (state.reservations || []).filter(x => String(x.id) !== String(id));
+    renderAll();
+    markDirty({ reservations:true });
+  }
 
-function deleteReservation(id){
-  const r = findReservation(id);
-  if(!r) return;
-  if(!confirm('Biztos törlöd ezt a foglalást?')) return;
-  r.deleted = true;
-  r.lastAction = 'Foglalás törölve';
-  renderAll();
-  markDirty({ reservations:true });
-}
+  function confirmReservation(id){
+    const r = findReservation(id);
+    if(!r) return;
+    r.confirmed = true;
+    r.expiresAt = null;
+    renderAll();
+    markDirty({ reservations:true });
+  }
 
-function confirmReservation(id){
-  const r = findReservation(id);
-  if(!r) return;
-  r.confirmed = true;
-  r.expiresAt = null;
-  r.lastAction = 'Foglalás megerősítve';
-  renderAll();
-  markDirty({ reservations:true });
-}
-
-function reservedByOthers(pid, excludeId){
+  function reservedByOthers(pid, excludeId){
     let sum = 0;
     for(const r of (state.reservations||[])){
       if(!r) continue;
@@ -1830,8 +1846,6 @@ const addRow = (pref) => {
         r.items = items;
         r.modified = true;
         r.modifiedAt = Date.now();
-        r.editCount = Math.max(0, Number(r.editCount || 0) || 0) + 1;
-        r.lastAction = 'Foglalás szerkesztve';
         closeModal();
         renderAll();
         markDirty({ reservations:true });
@@ -1852,27 +1866,13 @@ const addRow = (pref) => {
       fromReservationId: r.id
     });
   }
-
-function editSale(id){
-  const s = state.sales.find(x => String(x.id) === String(id));
-  if(!s) return;
-  openSaleModal({
-    title: `Eladás szerkesztése (${s.id})`,
-    date: String(s.date || todayISO()),
-    name: String(s.name || ''),
-    payment: String(s.payment || ''),
-    items: (s.items || []).map(it => ({ productId: it.productId, qty: it.qty, unitPrice: it.unitPrice })),
-    editSaleId: s.id
-  });
-}
-
-
 function deleteSale(id){
     const idx = state.sales.findIndex(x => x.id === id);
     if(idx < 0) return;
     const s = state.sales[idx];
 
-    for(const it of (s.items || [])){
+    // rollback stock
+    for(const it of s.items){
       const p = prodById(it.productId);
       if(!p) continue;
       p.stock = Math.max(0, Number(p.stock||0) + Number(it.qty||0));
@@ -1884,224 +1884,468 @@ function deleteSale(id){
     markDirty({ products:true, sales:true });
   }
 
-  function pad2(n){ return String(n).padStart(2,"0"); }
-  function toLocalISODate(d){
-    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
-  }
-  function parseLocalISODate(s){
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(String(s || ''))) return new Date();
-    const [y,m,d] = String(s).split('-').map(Number);
-    return new Date(y, (m||1)-1, d||1);
-  }
-  function startOfWeekMonday(date){
-    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const day = d.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    d.setDate(d.getDate() + diff);
-    d.setHours(0,0,0,0);
-    return d;
-  }
-  function endOfWeekSunday(date){
-    const s = startOfWeekMonday(date);
-    const e = new Date(s);
-    e.setDate(e.getDate() + 6);
-    e.setHours(0,0,0,0);
-    return e;
-  }
-  function weekInputFromDate(date){
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-    return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2,'0')}`;
-  }
-  function dateFromWeekInput(weekValue){
-    const m = String(weekValue || '').match(/^(\d{4})-W(\d{2})$/);
-    if(!m) return startOfWeekMonday(new Date());
-    const year = Number(m[1]);
-    const week = Number(m[2]);
-    const jan4 = new Date(year, 0, 4);
-    const jan4Monday = startOfWeekMonday(jan4);
-    const d = new Date(jan4Monday);
-    d.setDate(jan4Monday.getDate() + (week - 1) * 7);
-    d.setHours(0,0,0,0);
-    return d;
-  }
-  function endOfMonth(date){
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0);
-  }
-  function shortMonthHu(monthIndex){
-    return ['Jan','Febr','Márc','Ápr','Máj','Jún','Júl','Aug','Szept','Okt','Nov','Dec'][monthIndex] || '';
-  }
-  function chartLabelForDate(isoDate, mode){
-    const d = parseLocalISODate(isoDate);
-    if(mode === 'month') return `${pad2(d.getMonth()+1)}.${pad2(d.getDate())}`;
-    if(mode === 'week') return ['H','K','Sze','Cs','P','Szo','V'][d.getDay() === 0 ? 6 : d.getDay()-1];
-    if(mode === 'day') return isoDate;
-    return isoDate.slice(0,7);
-  }
-
   function renderChartPanel(){
-    const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];
-    const now = new Date();
-    if(!state.filters.chartYear) state.filters.chartYear = String(now.getFullYear());
-    if(!state.filters.chartMonth) state.filters.chartMonth = `${now.getFullYear()}-${pad2(now.getMonth()+1)}`;
-    if(!state.filters.chartWeek) state.filters.chartWeek = weekInputFromDate(now);
-    if(!state.filters.chartDay) state.filters.chartDay = toLocalISODate(now);
+  initChartFilters();
 
-    $("#panelChart").innerHTML = `
-      <div class="actions table" style="align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-        <div class="small-muted">Bevétel diagrammok (eladások alapján)</div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
-          <div class="small-muted">Kategória:</div>
-          <select id="chartCat">
-            ${cats.map(c => `<option value="${escapeHtml(c.id)}"${c.id===state.filters.chartCat?" selected":""}>${escapeHtml(c.label)}</option>`).join("")}
-          </select>
+  const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];
+  const years = [...new Set((state.sales || []).map(s => String(s.date || "").slice(0,4)).filter(Boolean))].sort();
+  if(!years.length) years.push(String(new Date().getFullYear()));
+  if(!years.includes(String(state.filters.chartYear || ""))) state.filters.chartYear = years[years.length - 1];
+
+  const weekStart = startOfWeek(parseDateInput(state.filters.chartWeek) || new Date());
+  const weekEnd = endOfWeek(parseDateInput(state.filters.chartWeek) || new Date());
+
+  $("#panelChart").innerHTML = `
+    <div class="chart-toolbar">
+      <div class="chart-toolbar-group">
+        <div class="small-muted">Kategória</div>
+        <select id="chartCat">
+          ${cats.map(c => `<option value="${escapeHtml(c.id)}"${c.id===state.filters.chartCat?" selected":""}>${escapeHtml(c.label)}</option>`).join("")}
+        </select>
+      </div>
+
+      <div class="chart-toolbar-group">
+        <div class="small-muted">Összesen: ettől</div>
+        <input type="date" id="chartAllFrom" value="${escapeHtml(state.filters.chartAllFrom || "")}">
+      </div>
+      <div class="chart-toolbar-group">
+        <div class="small-muted">Összesen: eddig</div>
+        <input type="date" id="chartAllTo" value="${escapeHtml(state.filters.chartAllTo || "")}">
+      </div>
+      <div class="chart-toolbar-group">
+        <div class="small-muted">Év</div>
+        <select id="chartYear">${years.map(y => `<option value="${escapeHtml(y)}"${String(state.filters.chartYear)===String(y)?" selected":""}>${escapeHtml(y)}</option>`).join("")}</select>
+      </div>
+      <div class="chart-toolbar-group">
+        <div class="small-muted">Hónap</div>
+        <input type="month" id="chartMonth" value="${escapeHtml(state.filters.chartMonth || "")}">
+      </div>
+      <div class="chart-toolbar-group">
+        <div class="small-muted">Hét (bármelyik nap)</div>
+        <input type="date" id="chartWeek" value="${escapeHtml(state.filters.chartWeek || "")}">
+      </div>
+      <div class="chart-toolbar-group">
+        <div class="small-muted">Nap</div>
+        <input type="date" id="chartDay" value="${escapeHtml(state.filters.chartDay || "")}">
+      </div>
+      <div class="chart-toolbar-group chart-toolbar-actions">
+        <button class="ghost" id="chartResetBtn" type="button">Vissza alapra</button>
+      </div>
+    </div>
+
+    <div class="kpi" style="margin-top:10px;">
+      <div class="box" style="min-width:170px;">
+        <div class="t">Összesen</div>
+        <div class="v" id="kpi_all">0 Ft</div>
+      </div>
+      <div class="box" style="min-width:170px;">
+        <div class="t">Év</div>
+        <div class="v" id="kpi_year">0 Ft</div>
+      </div>
+      <div class="box" style="min-width:170px;">
+        <div class="t">Hónap</div>
+        <div class="v" id="kpi_month">0 Ft</div>
+      </div>
+      <div class="box" style="min-width:170px;">
+        <div class="t">Hét</div>
+        <div class="v" id="kpi_week">0 Ft</div>
+      </div>
+      <div class="box" style="min-width:170px;">
+        <div class="t">Nap</div>
+        <div class="v" id="kpi_day">0 Ft</div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">Összesen</div>
+          <div class="small-muted" id="chartSubAll">${escapeHtml(state.filters.chartAllFrom || "—")} – ${escapeHtml(state.filters.chartAllTo || "—")}</div>
         </div>
       </div>
+      <canvas id="revAll" height="220"></canvas>
+    </div>
 
-      <div class="kpi" style="margin-top:10px;">
-        <div class="box" style="min-width:170px;"><div class="t">Összesen</div><div class="v" id="kpi_all">0 Ft</div></div>
-        <div class="box" style="min-width:170px;"><div class="t">Év</div><div class="v" id="kpi_year">0 Ft</div></div>
-        <div class="box" style="min-width:170px;"><div class="t">Hónap</div><div class="v" id="kpi_month">0 Ft</div></div>
-        <div class="box" style="min-width:170px;"><div class="t">Hét</div><div class="v" id="kpi_week">0 Ft</div></div>
-        <div class="box" style="min-width:170px;"><div class="t">Nap</div><div class="v" id="kpi_day">0 Ft</div></div>
-      </div>
-
-      <div class="chart-card">
-        <div class="chart-head"><div><div class="chart-title">Összesen</div><div class="small-muted">Havi bontás (teljes időszak)</div></div></div>
-        <canvas id="revAll" height="220"></canvas>
-      </div>
-
-      <div class="chart-card">
-        <div class="chart-head" style="gap:12px;flex-wrap:wrap;justify-content:space-between;">
-          <div><div class="chart-title">Évi</div><div class="small-muted">Jan 1 – Dec 31</div></div>
-          <input id="chartYearRef" type="number" min="2020" max="2100" value="${escapeHtml(state.filters.chartYear)}" style="width:120px;">
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">Évi</div>
+          <div class="small-muted" id="chartSubYear">${escapeHtml(String(state.filters.chartYear || ""))}.01.01 – ${escapeHtml(String(state.filters.chartYear || ""))}.12.31</div>
         </div>
-        <canvas id="revYear" height="220"></canvas>
       </div>
+      <canvas id="revYear" height="220"></canvas>
+    </div>
 
-      <div class="chart-card">
-        <div class="chart-head" style="gap:12px;flex-wrap:wrap;justify-content:space-between;">
-          <div><div class="chart-title">Havi</div><div class="small-muted">A kiválasztott hónap teljes időszaka</div></div>
-          <input id="chartMonthRef" type="month" value="${escapeHtml(state.filters.chartMonth)}">
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">Havi</div>
+          <div class="small-muted" id="chartSubMonth">${escapeHtml(state.filters.chartMonth || "")}</div>
         </div>
-        <canvas id="revMonth" height="220"></canvas>
       </div>
+      <canvas id="revMonth" height="220"></canvas>
+    </div>
 
-      <div class="chart-card">
-        <div class="chart-head" style="gap:12px;flex-wrap:wrap;justify-content:space-between;">
-          <div><div class="chart-title">Heti</div><div class="small-muted">Hétfő – vasárnap</div></div>
-          <input id="chartWeekRef" type="week" value="${escapeHtml(state.filters.chartWeek)}">
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">Heti</div>
+          <div class="small-muted" id="chartSubWeek">${escapeHtml((weekStart.toISOString().slice(0,10)))} – ${escapeHtml((weekEnd.toISOString().slice(0,10)))}</div>
         </div>
-        <canvas id="revWeek" height="220"></canvas>
       </div>
+      <canvas id="revWeek" height="220"></canvas>
+    </div>
 
-      <div class="chart-card">
-        <div class="chart-head" style="gap:12px;flex-wrap:wrap;justify-content:space-between;">
-          <div><div class="chart-title">Napi</div><div class="small-muted">A kiválasztott nap teljes összege</div></div>
-          <input id="chartDayRef" type="date" value="${escapeHtml(state.filters.chartDay)}">
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">Napi</div>
+          <div class="small-muted" id="chartSubDay">${escapeHtml(state.filters.chartDay || "")}</div>
         </div>
-        <canvas id="revDay" height="220"></canvas>
+      </div>
+      <canvas id="revDay" height="220"></canvas>
+    </div>
+  `;
+
+  const syncAndDraw = () => {
+    state.filters.chartCat = $("#chartCat")?.value || "all";
+    state.filters.chartAllFrom = $("#chartAllFrom")?.value || state.filters.chartAllFrom;
+    state.filters.chartAllTo = $("#chartAllTo")?.value || state.filters.chartAllTo;
+    state.filters.chartYear = $("#chartYear")?.value || state.filters.chartYear;
+    state.filters.chartMonth = $("#chartMonth")?.value || state.filters.chartMonth;
+    state.filters.chartWeek = $("#chartWeek")?.value || state.filters.chartWeek;
+    state.filters.chartDay = $("#chartDay")?.value || state.filters.chartDay;
+    drawChart();
+  };
+
+  ["#chartCat", "#chartAllFrom", "#chartAllTo", "#chartYear", "#chartMonth", "#chartWeek", "#chartDay"].forEach(sel => {
+    const el = $(sel);
+    if(el) el.addEventListener("change", syncAndDraw);
+  });
+
+  $("#chartResetBtn").onclick = () => {
+    initChartFilters(true);
+    renderChartPanel();
+  };
+
+  drawChart();
+}
+
+
+  /* ---------- Popups (Új termékek) ---------- */
+  function renderPopups(){
+    const panel = $("#panelPopups");
+    if(!panel) return;
+
+    const popups = [...(state.doc.popups || [])].sort((a,b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+
+    panel.innerHTML = `
+      <div class="actions table" style="align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <div style="font-weight:900;">Pop-upok</div>
+          <div class="small-muted">Itt tudod kezelni, melyik új termékes pop-up jelenjen meg a user oldalon.</div>
+        </div>
+        <button class="primary" id="btnAddPopup" type="button">+ Új pop-up</button>
+      </div>
+      <div style="margin-top:12px;display:grid;gap:10px;" id="popupRows">
+        ${popups.length ? popups.map(pp => {
+          const cats = (pp.categoryIds || []).map(id => catById(id)?.label_hu || id).join(", ");
+          const prods = (pp.productIds || []).map(id => {
+            const p = prodById(id);
+            if(!p) return id;
+            return `${p.name_hu || p.name_en || "—"} — ${p.flavor_hu || p.flavor_en || ""}`;
+          }).join(", ");
+          return `
+            <div class="rowline table popup-row">
+              <div class="left">
+                <div style="font-weight:900;">${escapeHtml(pp.title_hu || "Új termékek elérhetőek")}</div>
+                <div class="small-muted">ID: <b>${escapeHtml(pp.id)}</b> • Rev: <b>${Number(pp.rev || 0)}</b></div>
+                <div class="small-muted">Kategóriák: <b>${escapeHtml(cats || "—")}</b></div>
+                <div class="small-muted">Kézi termékek: <b>${escapeHtml(prods || "—")}</b></div>
+              </div>
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <label class="chk"><input type="checkbox" data-popup-toggle="${escapeHtml(pp.id)}" ${pp.enabled === false ? "" : "checked"}> Aktív</label>
+                <button class="ghost" data-popup-edit="${escapeHtml(pp.id)}" type="button">Szerkeszt</button>
+                <button class="danger" data-popup-delete="${escapeHtml(pp.id)}" type="button">Töröl</button>
+              </div>
+            </div>
+          `;
+        }).join("") : `<div class="small-muted">Nincs még pop-up.</div>`}
       </div>
     `;
 
-    $("#chartCat").onchange = () => { state.filters.chartCat = $("#chartCat").value; drawChart(); };
-    $("#chartYearRef").onchange = () => { state.filters.chartYear = $("#chartYearRef").value || String(new Date().getFullYear()); drawChart(); };
-    $("#chartMonthRef").onchange = () => { state.filters.chartMonth = $("#chartMonthRef").value || state.filters.chartMonth; drawChart(); };
-    $("#chartWeekRef").onchange = () => { state.filters.chartWeek = $("#chartWeekRef").value || state.filters.chartWeek; drawChart(); };
-    $("#chartDayRef").onchange = () => { state.filters.chartDay = $("#chartDayRef").value || state.filters.chartDay; drawChart(); };
+    $("#btnAddPopup").onclick = () => openPopupModal(null);
 
-    drawChart();
+    panel.querySelectorAll("[data-popup-toggle]").forEach(el => {
+      el.addEventListener("change", () => {
+        const id = String(el.getAttribute("data-popup-toggle") || "");
+        const idx = (state.doc.popups || []).findIndex(x => String(x.id) === id);
+        if(idx < 0) return;
+        state.doc.popups[idx] = {
+          ...state.doc.popups[idx],
+          enabled: !!el.checked,
+          updatedAt: Date.now(),
+          rev: Date.now()
+        };
+        markDirty({ products:true });
+      });
+    });
+
+    panel.querySelectorAll("[data-popup-edit]").forEach(btn => {
+      btn.onclick = () => openPopupModal(btn.getAttribute("data-popup-edit"));
+    });
+
+    panel.querySelectorAll("[data-popup-delete]").forEach(btn => {
+      btn.onclick = () => {
+        const id = String(btn.getAttribute("data-popup-delete") || "");
+        const body = document.createElement("div");
+        body.innerHTML = `<div class="small-muted">Biztos törlöd ezt a pop-upot? <b>${escapeHtml(id)}</b></div>`;
+        openModal("Pop-up törlése", "", body, [
+          { label:"Mégse", kind:"ghost", onClick: closeModal },
+          { label:"Törlés", kind:"danger", onClick: () => {
+            state.doc.popups = (state.doc.popups || []).filter(x => String(x.id) !== id);
+            closeModal();
+            renderPopups();
+            markDirty({ products:true });
+          }}
+        ]);
+      };
+    });
   }
 
-function drawChart(){
+  function openPopupModal(id){
+    const editing = id ? (state.doc.popups || []).find(x => String(x.id) === String(id)) : null;
+    const base = editing ? { ...editing } : {
+      id: "popup_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16),
+      enabled: true,
+      rev: Date.now(),
+      title_hu: "Új termékek elérhetőek",
+      title_en: "Új termékek elérhetőek",
+      categoryIds: [],
+      productIds: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    const cats = [...state.doc.categories].sort((a,b) => (a.label_hu || a.id).localeCompare((b.label_hu || b.id), "hu"));
+    const catMap = new Map(cats.map(c => [String(c.id), c]));
+    const prods = [...state.doc.products].sort((a,b) => {
+      const catA = catMap.get(String(a.categoryId || ""))?.label_hu || "";
+      const catB = catMap.get(String(b.categoryId || ""))?.label_hu || "";
+      if(catA !== catB) return catA.localeCompare(catB, "hu");
+      const nameA = a.name_hu || a.name_en || "";
+      const nameB = b.name_hu || b.name_en || "";
+      if(nameA !== nameB) return nameA.localeCompare(nameB, "hu");
+      return (a.flavor_hu || a.flavor_en || "").localeCompare((b.flavor_hu || b.flavor_en || ""), "hu");
+    });
+
+    const body = document.createElement("div");
+    body.innerHTML = `
+      <div class="form-grid">
+        <div class="field third"><label>ID</label><input id="pp_id" value="${escapeHtml(base.id)}" ${editing ? "disabled" : ""}></div>
+        <div class="field third"><label>Aktív</label><label class="chk"><input type="checkbox" id="pp_enabled" ${base.enabled === false ? "" : "checked"}> Bekapcsolva</label></div>
+        <div class="field third"><label>Rev</label><input id="pp_rev" value="${Number(base.rev || 0)}" disabled></div>
+        <div class="field full"><label>Cím</label><input id="pp_thu" value="${escapeHtml(base.title_hu || "")}"></div>
+        <div class="field full"><label>Kategóriák</label>
+          <div class="check-grid">
+            ${cats.map(c => `<label class="chk"><input type="checkbox" class="pp_cat" value="${escapeHtml(c.id)}" ${(base.categoryIds || []).includes(c.id) ? "checked" : ""}> ${escapeHtml(c.label_hu || c.id)}</label>`).join("")}
+          </div>
+        </div>
+        <div class="field full"><label>Kézi termékek</label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+            <input id="pp_search" placeholder="Keresés név / íz szerint..." style="flex:1;min-width:240px;">
+            <select id="pp_catfilter" style="width:240px;">
+              <option value="all">Összes kategória</option>
+              ${cats.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.label_hu || c.id)}</option>`).join("")}
+            </select>
+          </div>
+          <div class="check-grid" id="pp_prod_list">
+            ${prods.map(p => {
+              const cid = String(p.categoryId || "");
+              const cname = catMap.get(cid)?.label_hu || cid;
+              return `
+                <label class="chk" data-cat="${escapeHtml(cid)}" data-search="${escapeHtml(`${p.name_hu || p.name_en || ""} ${(p.flavor_hu || p.flavor_en || "")}`.toLowerCase())}" style="display:flex;flex-direction:column;gap:2px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.05);">
+                  <div style="display:flex;align-items:flex-start;gap:8px;">
+                    <input type="checkbox" class="pp_prod" value="${escapeHtml(p.id)}" ${(base.productIds || []).includes(p.id) ? "checked" : ""}>
+                    <div>
+                      <div style="font-weight:700;">${escapeHtml(p.name_hu || p.name_en || "—")}</div>
+                      <div style="font-size:12px;color:var(--muted);">${escapeHtml(p.flavor_hu || p.flavor_en || "")}</div>
+                      <div style="font-size:11px;color:var(--brand2);margin-top:4px;">[${escapeHtml(cname || "—")}]</div>
+                    </div>
+                  </div>
+                </label>
+              `;
+            }).join("")}
+          </div>
+        </div>
+      </div>
+    `;
+
+    openModal(editing ? "Pop-up szerkesztése" : "Új pop-up", "Csak X-szel vagy gombbal zárható.", body, [
+      { label:"Mégse", kind:"ghost", onClick: closeModal },
+      { label:"Mentés", kind:"primary", onClick: () => {
+        const next = {
+          id: String($("#pp_id")?.value || "").trim(),
+          enabled: !!$("#pp_enabled")?.checked,
+          title_hu: String($("#pp_thu")?.value || "").trim() || "Új termékek elérhetőek",
+          title_en: String($("#pp_thu")?.value || "").trim() || "Új termékek elérhetőek",
+          categoryIds: Array.from(body.querySelectorAll(".pp_cat:checked")).map(x => String(x.value)),
+          productIds: Array.from(body.querySelectorAll(".pp_prod:checked")).map(x => String(x.value)),
+          createdAt: editing ? Number(editing.createdAt || Date.now()) : Date.now(),
+          updatedAt: Date.now(),
+          rev: Date.now()
+        };
+        if(!next.id) return;
+        if(editing){
+          state.doc.popups = (state.doc.popups || []).map(x => String(x.id) === String(editing.id) ? next : x);
+        }else{
+          state.doc.popups = [...(state.doc.popups || []), next];
+        }
+        closeModal();
+        renderPopups();
+        markDirty({ products:true });
+      }}
+    ]);
+
+    const search = $("#pp_search");
+    const filter = $("#pp_catfilter");
+    const applyFilter = () => {
+      const q = String(search?.value || "").trim().toLowerCase();
+      const cf = String(filter?.value || "all");
+      body.querySelectorAll("#pp_prod_list > label.chk").forEach(lab => {
+        const text = String(lab.getAttribute("data-search") || "");
+        const cat = String(lab.getAttribute("data-cat") || "");
+        const ok = (!q || text.includes(q)) && (cf === "all" || cat === cf);
+        lab.style.display = ok ? "" : "none";
+      });
+    };
+    if(search) search.addEventListener("input", applyFilter);
+    if(filter) filter.addEventListener("change", applyFilter);
+    applyFilter();
+  }
+
+  function drawChart(){
+  initChartFilters();
   const cat = state.filters.chartCat || "all";
 
   const css = getComputedStyle(document.documentElement);
   const accent = (css.getPropertyValue("--brand2") || "#4aa3ff").trim();
-  const accentSoft = "rgba(40,215,255,.22)";
+  const fill = "rgba(40,215,255,.14)";
   const grid = "rgba(255,255,255,.08)";
   const text = "rgba(255,255,255,.82)";
   const muted = "rgba(255,255,255,.55)";
+
   const fmtFt = (n) => `${Math.round(n).toLocaleString("hu-HU")} Ft`;
-
-  const now = new Date();
-  const todayIso = toLocalISODate(now);
-  const selectedYear = Math.max(2000, Number(state.filters.chartYear || now.getFullYear()) || now.getFullYear());
-  const selectedMonth = /^\d{4}-\d{2}$/.test(String(state.filters.chartMonth || '')) ? state.filters.chartMonth : `${now.getFullYear()}-${pad2(now.getMonth()+1)}`;
-  const selectedWeek = /^\d{4}-W\d{2}$/.test(String(state.filters.chartWeek || '')) ? state.filters.chartWeek : weekInputFromDate(now);
-  const selectedDay = /^\d{4}-\d{2}-\d{2}$/.test(String(state.filters.chartDay || '')) ? state.filters.chartDay : todayIso;
-
-  const yearStartIso = `${selectedYear}-01-01`;
-  const yearEndIso = `${selectedYear}-12-31`;
-  const monthDate = parseLocalISODate(`${selectedMonth}-01`);
-  const monthStartIso = toLocalISODate(new Date(monthDate.getFullYear(), monthDate.getMonth(), 1));
-  const monthEndIso = toLocalISODate(endOfMonth(monthDate));
-  const weekStart = dateFromWeekInput(selectedWeek);
-  const weekEnd = endOfWeekSunday(weekStart);
-  const weekStartIso = toLocalISODate(weekStart);
-  const weekEndIso = toLocalISODate(weekEnd);
-  const dayStartIso = selectedDay;
-  const dayEndIso = selectedDay;
-
+  const iso = (d) => {
+    const x = new Date(d);
+    return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`;
+  };
+  const parseISO = (s) => parseDateInput(s) || new Date();
   const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
-  const inRange = (isoDate, startIso, endIso) => isoDate >= startIso && isoDate <= endIso;
 
-  const dayMap = new Map();
+  const allFrom = parseDateInput(state.filters.chartAllFrom) || parseDateInput(getSalesDateBounds().min) || new Date();
+  const allToRaw = parseDateInput(state.filters.chartAllTo) || parseDateInput(getSalesDateBounds().max) || new Date();
+  const allTo = allToRaw < allFrom ? new Date(allFrom) : allToRaw;
+
+  const selectedYear = Number(state.filters.chartYear || new Date().getFullYear()) || new Date().getFullYear();
+  const yearStart = new Date(selectedYear, 0, 1);
+  const yearEnd = new Date(selectedYear, 11, 31);
+
+  const monthValue = String(state.filters.chartMonth || monthInputValue(new Date()));
+  let monthYear = Number(monthValue.slice(0,4));
+  let monthIdx = Number(monthValue.slice(5,7)) - 1;
+  if(!Number.isFinite(monthYear) || !Number.isFinite(monthIdx) || monthIdx < 0 || monthIdx > 11){
+    const now = new Date();
+    monthYear = now.getFullYear();
+    monthIdx = now.getMonth();
+  }
+  const monthStart = new Date(monthYear, monthIdx, 1);
+  const monthEnd = endOfMonth(monthYear, monthIdx);
+
+  const weekPivot = parseDateInput(state.filters.chartWeek) || new Date();
+  const weekStart = startOfWeek(weekPivot);
+  const weekEnd = endOfWeek(weekPivot);
+
+  const daySelected = parseDateInput(state.filters.chartDay) || new Date();
+  const dayIso = iso(daySelected);
+
+  const allDayMap = new Map();
+  const yearDayMap = new Map();
+  const monthDayMap = new Map();
+  const weekDayMap = new Map();
+  const dayContextMap = new Map();
+
   let allTotal = 0, yearTotal = 0, monthTotal = 0, weekTotal = 0, dayTotal = 0;
 
-  for(const s of (state.sales || [])){
-    const dt = String(s.date || '').slice(0,10);
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(dt)) continue;
+  for(const sale of (state.sales || [])){
+    const dt = String(sale.date || "").slice(0,10);
+    if(!dt) continue;
+    const d = parseDateInput(dt);
+    if(!d) continue;
 
-    const tot = saleTotals(s, cat);
-    const rev = Number(tot.revenue || 0);
-    if(!rev) continue;
+    const totals = saleTotals(sale, cat);
+    const revenue = Number(totals.revenue || 0);
+    if(!revenue) continue;
 
-    dayMap.set(dt, (dayMap.get(dt) || 0) + rev);
-    allTotal += rev;
-    if(inRange(dt, yearStartIso, yearEndIso)) yearTotal += rev;
-    if(inRange(dt, monthStartIso, monthEndIso)) monthTotal += rev;
-    if(inRange(dt, weekStartIso, weekEndIso)) weekTotal += rev;
-    if(inRange(dt, dayStartIso, dayEndIso)) dayTotal += rev;
+    const key = iso(d);
+    if(d >= allFrom && d <= allTo){
+      allDayMap.set(key, (allDayMap.get(key) || 0) + revenue);
+      allTotal += revenue;
+    }
+    if(d >= yearStart && d <= yearEnd){
+      yearDayMap.set(key, (yearDayMap.get(key) || 0) + revenue);
+      yearTotal += revenue;
+    }
+    if(d >= monthStart && d <= monthEnd){
+      monthDayMap.set(key, (monthDayMap.get(key) || 0) + revenue);
+      monthTotal += revenue;
+    }
+    if(d >= weekStart && d <= weekEnd){
+      weekDayMap.set(key, (weekDayMap.get(key) || 0) + revenue);
+      weekTotal += revenue;
+    }
+    if(key === dayIso) dayTotal += revenue;
+    if(key === iso(addDays(daySelected, -1)) || key === dayIso){
+      dayContextMap.set(key, (dayContextMap.get(key) || 0) + revenue);
+    }
   }
 
   const setKpi = (id, val) => { const el = $(id); if(el) el.textContent = fmtFt(val); };
-  setKpi('#kpi_all', allTotal);
-  setKpi('#kpi_year', yearTotal);
-  setKpi('#kpi_month', monthTotal);
-  setKpi('#kpi_week', weekTotal);
-  setKpi('#kpi_day', dayTotal);
+  setKpi("#kpi_all", allTotal);
+  setKpi("#kpi_year", yearTotal);
+  setKpi("#kpi_month", monthTotal);
+  setKpi("#kpi_week", weekTotal);
+  setKpi("#kpi_day", dayTotal);
 
-  const buildDailySeries = (startIso, endIso, mode='month') => {
-    const s = parseLocalISODate(startIso);
-    const e = parseLocalISODate(endIso);
+  const setSub = (id, value) => { const el = $(id); if(el) el.textContent = value; };
+  setSub("#chartSubAll", `${iso(allFrom)} – ${iso(allTo)}`);
+  setSub("#chartSubYear", `${selectedYear}.01.01 – ${selectedYear}.12.31`);
+  setSub("#chartSubMonth", `${monthValue} (${iso(monthStart)} – ${iso(monthEnd)})`);
+  setSub("#chartSubWeek", `${iso(weekStart)} – ${iso(weekEnd)}`);
+  setSub("#chartSubDay", `${dayIso} (előző nap + kiválasztott nap)`);
+
+  const buildDailySeries = (startDate, endDate, sourceMap) => {
     const arr = [];
-    for(let d = new Date(s); d <= e; d = addDays(d,1)){
-      const key = toLocalISODate(d);
-      arr.push({ label: chartLabelForDate(key, mode), rev: Number(dayMap.get(key) || 0), rawLabel: key });
+    for(let d = new Date(startDate); d <= endDate; d = addDays(d,1)){
+      const key = iso(d);
+      arr.push({ label: key, rev: Number(sourceMap.get(key) || 0) });
     }
     return arr;
   };
 
-  const buildMonthlySeries = (startIso, endIso, labelMode='all') => {
-    const s = parseLocalISODate(startIso);
-    const e = parseLocalISODate(endIso);
-    const m = new Map();
-    for(const [k, v] of dayMap.entries()){
-      if(k < startIso || k > endIso) continue;
-      const ym = k.slice(0,7);
-      m.set(ym, (m.get(ym) || 0) + Number(v || 0));
+  const buildMonthlySeries = (startDate, endDate, sourceMap) => {
+    const monthly = new Map();
+    for(const [key, value] of sourceMap.entries()){
+      const ym = key.slice(0,7);
+      monthly.set(ym, (monthly.get(ym) || 0) + Number(value || 0));
     }
     const arr = [];
-    const cur = new Date(s.getFullYear(), s.getMonth(), 1);
-    const end = new Date(e.getFullYear(), e.getMonth(), 1);
+    const cur = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    const end = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
     while(cur <= end){
-      const ym = `${cur.getFullYear()}-${pad2(cur.getMonth()+1)}`;
-      const label = labelMode === 'year' ? shortMonthHu(cur.getMonth()) : ym;
-      arr.push({ label, rev: Number(m.get(ym) || 0), rawLabel: ym });
-      cur.setMonth(cur.getMonth() + 1);
+      const ym = `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,"0")}`;
+      arr.push({ label: ym, rev: Number(monthly.get(ym) || 0) });
+      cur.setMonth(cur.getMonth()+1);
     }
     return arr;
   };
@@ -2109,28 +2353,28 @@ function drawChart(){
   const drawLine = (canvas, points) => {
     if(!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const w = Math.max(1, rect.width || canvas.parentElement?.clientWidth || 300);
-    const h = Math.max(1, rect.height || Number(canvas.getAttribute('height')) || 220);
+    const w = Math.max(1, rect.width || canvas.clientWidth || 300);
+    const h = Math.max(1, rect.height || 220);
     const dpr = window.devicePixelRatio || 1;
-
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if(!ctx) return;
     ctx.setTransform(dpr,0,0,dpr,0,0);
     ctx.clearRect(0,0,w,h);
 
-    const padL = 54, padR = 18, padT = 20, padB = 42;
+    const safePoints = points.length ? points : [{ label:"—", rev:0 }];
+    const padL = 52, padR = 14, padT = 18, padB = 36;
     const pw = Math.max(1, w - padL - padR);
     const ph = Math.max(1, h - padT - padB);
-    const max = Math.max(1, ...points.map(p => Number(p.rev || 0)));
-    const n = points.length;
+    const max = Math.max(1, ...safePoints.map(p => Number(p.rev || 0)));
+    const n = safePoints.length;
 
     ctx.lineWidth = 1;
     ctx.strokeStyle = grid;
     for(let i=0;i<=4;i++){
-      const y = padT + (ph * i/4);
+      const y = padT + (ph * i / 4);
       ctx.beginPath();
       ctx.moveTo(padL, y);
       ctx.lineTo(padL + pw, y);
@@ -2138,104 +2382,82 @@ function drawChart(){
     }
 
     ctx.fillStyle = muted;
-    ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
+    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
     for(let i=0;i<=4;i++){
       const v = Math.round(max * (1 - i/4));
-      const y = padT + (ph * i/4);
-      ctx.fillText(fmtFt(v).replace(' Ft',''), padL - 8, y);
+      const y = padT + (ph * i / 4);
+      ctx.fillText(fmtFt(v).replace(" Ft",""), padL - 8, y);
     }
 
-    const xAt = (i) => n <= 1 ? (padL + pw / 2) : padL + (pw * (i / (n - 1)));
+    const xAt = (i) => n <= 1 ? padL + pw / 2 : padL + (pw * (i / (n - 1)));
     const yAt = (v) => padT + ph - (ph * (Number(v || 0) / max));
 
-    if(n === 1){
-      const p = points[0] || { rev:0, label:'' };
-      const x = xAt(0);
-      const y = yAt(p.rev);
-      ctx.fillStyle = accentSoft;
-      ctx.fillRect(x - 26, y, 52, padT + ph - y);
-      ctx.strokeStyle = accent;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x - 26, y, 52, padT + ph - y);
-      ctx.fillStyle = accent;
-      ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = text;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      ctx.fillText(String(p.label || ''), x, padT + ph + 10);
-      return;
-    }
-
-    const area = ctx.createLinearGradient(0, padT, 0, padT + ph);
-    area.addColorStop(0, accentSoft);
-    area.addColorStop(1, 'rgba(40,215,255,0)');
-
     ctx.beginPath();
-    points.forEach((p, i) => {
+    safePoints.forEach((p, i) => {
       const x = xAt(i);
       const y = yAt(p.rev);
-      if(i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      if(i === 0) ctx.moveTo(x,y);
+      else ctx.lineTo(x,y);
     });
     ctx.lineTo(xAt(n - 1), padT + ph);
     ctx.lineTo(xAt(0), padT + ph);
     ctx.closePath();
-    ctx.fillStyle = area;
+    ctx.fillStyle = fill;
     ctx.fill();
 
     ctx.strokeStyle = accent;
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2.4;
     ctx.beginPath();
-    points.forEach((p, i) => {
+    safePoints.forEach((p, i) => {
       const x = xAt(i);
       const y = yAt(p.rev);
-      if(i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      if(i === 0) ctx.moveTo(x,y);
+      else ctx.lineTo(x,y);
     });
     ctx.stroke();
 
     ctx.fillStyle = accent;
-    points.forEach((p,i)=>{
+    safePoints.forEach((p, i) => {
       const x = xAt(i);
       const y = yAt(p.rev);
       ctx.beginPath();
-      ctx.arc(x,y,3.4,0,Math.PI*2);
+      ctx.arc(x, y, 3.4, 0, Math.PI * 2);
       ctx.fill();
     });
 
     ctx.fillStyle = text;
-    ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-
-    const labelIndexes = n <= 3 ? [...Array(n).keys()] : [0, Math.floor((n - 1) / 2), n - 1];
-    [...new Set(labelIndexes)].forEach(i => {
-      const p = points[i];
-      if(!p) return;
-      ctx.fillText(String(p.label || ''), xAt(i), padT + ph + 10);
-    });
+    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    const labels = [];
+    if(n === 1){
+      labels.push({ i:0, t:safePoints[0].label });
+    }else if(n === 2){
+      labels.push({ i:0, t:safePoints[0].label });
+      labels.push({ i:1, t:safePoints[1].label });
+    }else{
+      labels.push({ i:0, t:safePoints[0].label });
+      labels.push({ i:Math.floor((n - 1) / 2), t:safePoints[Math.floor((n - 1) / 2)].label });
+      labels.push({ i:n - 1, t:safePoints[n - 1].label });
+    }
+    labels.forEach(obj => ctx.fillText(String(obj.t || ""), xAt(obj.i), padT + ph + 10));
   };
 
-  const allDates = [...dayMap.keys()].sort();
-  const allStart = allDates[0] || todayIso;
-  const allEnd = allDates[allDates.length - 1] || todayIso;
+  const seriesAll = buildMonthlySeries(allFrom, allTo, allDayMap);
+  const seriesYear = buildMonthlySeries(yearStart, yearEnd, yearDayMap);
+  const seriesMonth = buildDailySeries(monthStart, monthEnd, monthDayMap);
+  const seriesWeek = buildDailySeries(weekStart, weekEnd, weekDayMap);
+  const seriesDay = buildDailySeries(addDays(daySelected, -1), daySelected, dayContextMap);
 
-  const seriesAll = buildMonthlySeries(allStart, allEnd, 'all');
-  const seriesYear = buildMonthlySeries(yearStartIso, yearEndIso, 'year');
-  const seriesMonth = buildDailySeries(monthStartIso, monthEndIso, 'month');
-  const seriesWeek = buildDailySeries(weekStartIso, weekEndIso, 'week');
-  const seriesDay = buildDailySeries(dayStartIso, dayEndIso, 'day');
-
-  drawLine($('#revAll'), seriesAll);
-  drawLine($('#revYear'), seriesYear);
-  drawLine($('#revMonth'), seriesMonth);
-  drawLine($('#revWeek'), seriesWeek);
-  drawLine($('#revDay'), seriesDay);
+  drawLine($("#revAll"), seriesAll);
+  drawLine($("#revYear"), seriesYear);
+  drawLine($("#revMonth"), seriesMonth);
+  drawLine($("#revWeek"), seriesWeek);
+  drawLine($("#revDay"), seriesDay);
 }
+
 
   function renderAll(){
     renderSettings();
@@ -2248,31 +2470,12 @@ function drawChart(){
   }
 
   /* ---------- init ---------- */
-  async function hydrateSourceConfig(){
-    try{
-      const cfg = loadCfg();
-      const needApi = !String(cfg.resApi || '').trim();
-      if(!needApi) return;
-      const r = await fetch(`data/sv_source.json?_=${Date.now()}`, { cache:'no-store' });
-      if(!r.ok) return;
-      const j = await r.json();
-      const next = { ...cfg };
-      next.resApi = String(j.reserveApi || j.reserve_api || j.reservationsApi || j.reservations_api || j.resApi || j.res_api || cfg.resApi || '').trim();
-      saveCfg(next);
-      try{
-        const src = JSON.parse(localStorage.getItem('sv_source') || 'null') || {};
-        localStorage.setItem('sv_source', JSON.stringify({ ...src, reserveApi: next.resApi || src.reserveApi || '' }));
-      }catch{}
-    }catch{}
-  }
-
-  async function init(){
+  function init(){
     renderTabs();
     $("#btnReload").onclick = () => location.reload();
-    $("#modalCloseBtn")?.addEventListener("click", closeModal);
+    // Háttérre kattintásra ne záródjon, csak X-szel vagy a modál saját gombjaival.
 
     // first render panels + inject settings inputs ids
-    await hydrateSourceConfig();
     renderSettings();
 
     // reservation expiry ticker (safe even before load)
