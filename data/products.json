@@ -178,7 +178,7 @@
       "id": "p_9842bfea4d24c_19b5b637a59",
       "categoryId": "elfraya25",
       "status": "ok",
-      "stock": 4,
+      "stock": 2,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -722,7 +722,7 @@
       "id": "p_a52ce38bb9b78_19cae8202a0",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 6,
+      "stock": 5,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -786,7 +786,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774465648349,
-    "updatedAt": "2026-03-25T19:07:28.349Z"
+    "rev": 1774530031351,
+    "updatedAt": "2026-03-26T13:00:31.351Z"
   }
 }
