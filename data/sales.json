@@ -1370,5 +1370,23 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_877e9db696bbf_19d2a3b6af3",
+    "date": "2026-03-26",
+    "name": "E. Viktor & Balázs",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_9842bfea4d24c_19b5b637a59",
+        "qty": 2,
+        "unitPrice": 6000
+      },
+      {
+        "productId": "p_a52ce38bb9b78_19cae8202a0",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
