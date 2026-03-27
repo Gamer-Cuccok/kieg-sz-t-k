@@ -474,8 +474,8 @@
       "image": "https://i.ibb.co/fGx1X0GK/10-MOJITO-MONSTER-MANGO-LADY-KILLER-PINK-LEMONADE-NOBG.png",
       "name_hu": "Vapsolo Quads 80k",
       "name_en": "Vapsolo Quads 80k",
-      "flavor_hu": "Mojito & Mangós Monster & Lady Gyilkos & Pink Limonádé",
-      "flavor_en": "Mojito & Monster Mango & Lady killer & Pink Lemonade",
+      "flavor_hu": "10. Mojito & Mangós Monster & Lady Gyilkos & Pink Limonádé",
+      "flavor_en": "10. Mojito & Monster Mango & Lady killer & Pink Lemonade",
       "soonEta": ""
     },
     {
@@ -786,7 +786,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774611770696,
-    "updatedAt": "2026-03-27T11:42:50.696Z"
+    "rev": 1774611800979,
+    "updatedAt": "2026-03-27T11:43:20.979Z"
   }
 }
