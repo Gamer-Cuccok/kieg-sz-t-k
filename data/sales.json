@@ -1419,5 +1419,18 @@
         "unitPrice": 0
       }
     ]
+  },
+  {
+    "id": "s_1f58c00d13be38_19d3023e54b",
+    "date": "2026-03-27",
+    "name": "Szabi",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_a52ce38bb9b78_19cae8202a0",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
