@@ -26,8 +26,8 @@
     "id": "r_mn97jsmn_kd721n",
     "publicCode": "466",
     "createdAt": 1774634480303,
-    "expiresAt": 1774807280303,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
     "modified": false,
     "modifiedAt": 0,
     "items": [
