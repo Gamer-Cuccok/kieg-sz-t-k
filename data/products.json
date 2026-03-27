@@ -490,8 +490,8 @@
       "image": "https://i.ibb.co/hFbcxT68/STRAWBERRY-MANGO-BLUE-RAZZ-LEMONADE-VANILLA-ICE-CREAM-SOUR-TRIPLE-BERRY-NOBG.png",
       "name_hu": "Vapsolo Quads 80k",
       "name_en": "Vapsolo Quads 80k",
-      "flavor_hu": "Eper Mangó & Kék Málna Limonádé & Vanília Fagyi & Savanyú Tripla Bogyó",
-      "flavor_en": "Strawberry Mango & Blue Razz Lemonade & Vanilla Ice Cream & Sour Triple Berry",
+      "flavor_hu": "8. Eper Mangó & Kék Málna Limonádé & Vanília Fagyi & Savanyú Tripla Bogyó",
+      "flavor_en": "8. Strawberry Mango & Blue Razz Lemonade & Vanilla Ice Cream & Sour Triple Berry",
       "soonEta": ""
     },
     {
@@ -786,7 +786,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774611717523,
-    "updatedAt": "2026-03-27T11:41:57.523Z"
+    "rev": 1774611746983,
+    "updatedAt": "2026-03-27T11:42:26.983Z"
   }
 }
