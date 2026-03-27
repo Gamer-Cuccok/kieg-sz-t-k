@@ -322,7 +322,7 @@
       "id": "p_57933baaefbb_19b5bc81e53",
       "categoryId": "elflush40",
       "status": "ok",
-      "stock": 8,
+      "stock": 7,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -466,7 +466,7 @@
       "id": "p_4f4efd0510951_19b6ae36cba",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 13,
+      "stock": 12,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -786,7 +786,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774611180614,
-    "updatedAt": "2026-03-27T11:33:00.614Z"
+    "rev": 1774611234643,
+    "updatedAt": "2026-03-27T11:33:54.643Z"
   }
 }
