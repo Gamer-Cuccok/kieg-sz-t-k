@@ -698,8 +698,8 @@
       "image": "https://i.ibb.co/sJCnH7nW/3-GRAPE-BURST-LYCHEE-ICE-PEACH-BERRY-KIWI-PASSION-FRUIT-GUAVA-NOBG.png",
       "name_hu": "Vapsolo Quads 80k",
       "name_en": "Vapsolo Quads 80k",
-      "flavor_hu": "Intenzív Szőlő & Licsi Jég & Kivi Maracuja Guava & Barack Bogyó",
-      "flavor_en": "Grape Burst & Lychee Ice & Kiwi Passion Fruit Guava & Peach Berry",
+      "flavor_hu": "3. Intenzív Szőlő & Licsi Jég & Kivi Maracuja Guava & Barack Bogyó",
+      "flavor_en": "3. Grape Burst & Lychee Ice & Kiwi Passion Fruit Guava & Peach Berry",
       "soonEta": ""
     },
     {
@@ -786,7 +786,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774611489029,
-    "updatedAt": "2026-03-27T11:38:09.029Z"
+    "rev": 1774611631729,
+    "updatedAt": "2026-03-27T11:40:31.729Z"
   }
 }
