@@ -506,8 +506,8 @@
       "image": "https://i.ibb.co/tWJGc13/MIXED-BERRY-CHERRY-LEMON-STRAWBERRY-KIWI-STRAWBERRY-WATERMELON-BUBBLEGUM-NOBG.png",
       "name_hu": "Vapsolo Quads 80k",
       "name_en": "Vapsolo Quads 80k",
-      "flavor_hu": "Vegyes Bogyó & Cseresznye Citrom & Eper Dinnye Rágó & Eper Kivi",
-      "flavor_en": "Mixed Berry & Cherry Lemon & Strawberry Watermelon Bubblegum & Strawberry Kiwi",
+      "flavor_hu": "9. Vegyes Bogyó & Cseresznye Citrom & Eper Dinnye Rágó & Eper Kivi",
+      "flavor_en": "9. Mixed Berry & Cherry Lemon & Strawberry Watermelon Bubblegum & Strawberry Kiwi",
       "soonEta": ""
     },
     {
@@ -786,7 +786,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774611746983,
-    "updatedAt": "2026-03-27T11:42:26.983Z"
+    "rev": 1774611770696,
+    "updatedAt": "2026-03-27T11:42:50.696Z"
   }
 }
