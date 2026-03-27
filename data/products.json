@@ -458,8 +458,8 @@
       "image": "https://i.ibb.co/TCXqQSH/4-WATERMELON-ICE-STRAWBERRY-MANGO-BLUEBERRYICE-FIZZY-CHERRY-NOBG.png",
       "name_hu": "Vapsolo Quads 80k",
       "name_en": "Vapsolo Quads 80k",
-      "flavor_hu": "Dinnye Jég & Eper Mangó & Áfonya Jég & Pezsgő Cseresznye",
-      "flavor_en": "Watermelon Ice & Strawberry Mango & Blueberry Ice & Fizzy Cherry",
+      "flavor_hu": "4. Dinnye Jég & Eper Mangó & Áfonya Jég & Pezsgő Cseresznye",
+      "flavor_en": "4. Watermelon Ice & Strawberry Mango & Blueberry Ice & Fizzy Cherry",
       "soonEta": ""
     },
     {
@@ -786,7 +786,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774611631729,
-    "updatedAt": "2026-03-27T11:40:31.729Z"
+    "rev": 1774611653917,
+    "updatedAt": "2026-03-27T11:40:53.917Z"
   }
 }
