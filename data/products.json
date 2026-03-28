@@ -450,7 +450,7 @@
       "id": "p_7e90788f76589_19b6adc49b6",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 2,
+      "stock": 3,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -498,7 +498,7 @@
       "id": "p_b862159bc3f608_19beb0c6380",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 4,
+      "stock": 2,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -562,7 +562,7 @@
       "id": "p_d1c0df1b50542_19c7aee39b0",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 5,
+      "stock": 6,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -578,7 +578,7 @@
       "id": "p_81909e3d929628_19c7af58890",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 5,
+      "stock": 4,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -754,7 +754,7 @@
       "id": "p_5aaf6d03437c8_19cae96fb2e",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 9,
+      "stock": 10,
       "visible": true,
       "visibleJD": true,
       "price": null,
@@ -786,7 +786,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774698391817,
-    "updatedAt": "2026-03-28T11:46:31.817Z"
+    "rev": 1774714703932,
+    "updatedAt": "2026-03-28T16:18:23.932Z"
   }
 }
