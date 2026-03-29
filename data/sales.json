@@ -1486,5 +1486,38 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_dbabdaabe1f648_19d3a0adbd8",
+    "date": "2026-03-29",
+    "name": "Áki",
+    "payment": "Sajátjából",
+    "items": [
+      {
+        "productId": "p_d1c0df1b50542_19c7aee39b0",
+        "qty": 1,
+        "unitPrice": 0
+      },
+      {
+        "productId": "p_81909e3d929628_19c7af58890",
+        "qty": 1,
+        "unitPrice": 0
+      },
+      {
+        "productId": "p_b862159bc3f608_19beb0c6380",
+        "qty": 1,
+        "unitPrice": 0
+      },
+      {
+        "productId": "p_4f4efd0510951_19b6ae36cba",
+        "qty": 1,
+        "unitPrice": 0
+      },
+      {
+        "productId": "p_5aaf6d03437c8_19cae96fb2e",
+        "qty": 1,
+        "unitPrice": 0
+      }
+    ]
   }
 ]
