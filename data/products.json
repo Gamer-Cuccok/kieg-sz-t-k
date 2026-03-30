@@ -7,7 +7,7 @@
       "basePrice": 5000,
       "visible": true,
       "featuredEnabled": true,
-      "secret": false
+      "secret": true
     },
     {
       "id": "elfraya25",
@@ -735,8 +735,8 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774909115453,
-    "updatedAt": "2026-03-30T22:18:35.453Z",
+    "rev": 1774909118601,
+    "updatedAt": "2026-03-30T22:18:38.601Z",
     "secretPasswordHash": "26c21f57"
   }
 }
