@@ -25,7 +25,7 @@
       "basePrice": 7000,
       "visible": true,
       "featuredEnabled": true,
-      "secret": false
+      "secret": true
     },
     {
       "id": "bood12k",
@@ -52,7 +52,7 @@
       "basePrice": 500,
       "visible": true,
       "featuredEnabled": true,
-      "secret": false
+      "secret": true
     }
   ],
   "products": [
@@ -735,8 +735,8 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774909060760,
-    "updatedAt": "2026-03-30T22:17:40.760Z",
+    "rev": 1774909098688,
+    "updatedAt": "2026-03-30T22:18:18.688Z",
     "secretPasswordHash": "26c21f57"
   }
 }
