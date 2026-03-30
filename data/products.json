@@ -7,7 +7,7 @@
       "basePrice": 5000,
       "visible": true,
       "featuredEnabled": true,
-      "secret": false
+      "secret": true
     },
     {
       "id": "elfraya25",
@@ -16,7 +16,7 @@
       "basePrice": 6000,
       "visible": true,
       "featuredEnabled": true,
-      "secret": false
+      "secret": true
     },
     {
       "id": "elflush40",
@@ -25,7 +25,7 @@
       "basePrice": 7000,
       "visible": true,
       "featuredEnabled": true,
-      "secret": false
+      "secret": true
     },
     {
       "id": "bood12k",
@@ -34,7 +34,7 @@
       "basePrice": 4000,
       "visible": true,
       "featuredEnabled": true,
-      "secret": false
+      "secret": true
     },
     {
       "id": "vapsolo80k",
@@ -52,7 +52,7 @@
       "basePrice": 500,
       "visible": true,
       "featuredEnabled": true,
-      "secret": false
+      "secret": true
     }
   ],
   "products": [
@@ -735,11 +735,11 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774914849616,
-    "updatedAt": "2026-03-30T23:54:09.616Z",
+    "rev": 1774914861422,
+    "updatedAt": "2026-03-30T23:54:21.423Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
-      "durationMs": 3600000
+      "durationMs": 60000
     }
   }
 }
