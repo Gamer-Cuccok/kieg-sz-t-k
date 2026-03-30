@@ -15,5 +15,23 @@
         "unitPriceJD": null
       }
     ]
+  },
+  {
+    "id": "r_mnd3mg0a_guswj6",
+    "publicCode": "317",
+    "createdAt": 1774869750154,
+    "expiresAt": 1775042550154,
+    "confirmed": false,
+    "editCount": 0,
+    "recorded": false,
+    "deleted": false,
+    "lastAction": "Új foglalás érkezett",
+    "items": [
+      {
+        "productId": "p_441538bc936fa_19be641e8b6",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
