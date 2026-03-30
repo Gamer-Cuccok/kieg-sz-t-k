@@ -26,6 +26,7 @@
     reservationsHash: "",
     reservationsFresh: false,
     reserveApi: "",
+    favorites: new Set(),
   };
 
   const isAdminMode = (()=>{
@@ -43,7 +44,10 @@
     understood: { hu: "Értettem", en: "Got it" },
     skipAll: { hu: "Összes átugrása", en: "Skip all" },
     dontShow: { hu: "Ne mutasd többször", en: "Don't show again" },
-    expected: { hu: "Várható", en: "Expected" }
+    expected: { hu: "Várható", en: "Expected" },
+    favorites: { hu: "Kedvencek", en: "Favorites" },
+    addFav: { hu: "Kedvenc", en: "Favorite" },
+    removeFav: { hu: "Kedvenc törlése", en: "Remove favorite" }
   };
 
   const t = (k) => (UI[k] ? UI[k].hu : k);
@@ -57,6 +61,36 @@
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
 
+  function naturalCompare(a, b){
+    return String(a ?? "").localeCompare(String(b ?? ""), locale(), { numeric: true, sensitivity: "base" });
+  }
+
+  function loadFavorites(){
+    try{
+      const raw = localStorage.getItem(FAVORITES_LS_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return new Set((Array.isArray(arr) ? arr : []).map(x => String(x || "")).filter(Boolean));
+    }catch{ return new Set(); }
+  }
+
+  function saveFavorites(){
+    try{ localStorage.setItem(FAVORITES_LS_KEY, JSON.stringify([...state.favorites])); }catch{}
+  }
+
+  function isFavorite(productId){
+    return state.favorites.has(String(productId || ""));
+  }
+
+  function toggleFavorite(productId){
+    const pid = String(productId || "");
+    if(!pid) return;
+    if(state.favorites.has(pid)) state.favorites.delete(pid);
+    else state.favorites.add(pid);
+    saveFavorites();
+    renderNav();
+    renderGrid();
+  }
+
 
   /* ----------------- Cart (client) ----------------- */
   function escHtml(s){
@@ -69,6 +103,7 @@
   }
 
   const CART_LS_KEY = "sv_cart_v1";
+  const FAVORITES_LS_KEY = "sv_favorites_v1";
 
   function loadCart(){
     try{
@@ -1156,7 +1191,7 @@
           const b = products.find(x=>String(x.id)===bestPid);
           const fa = norm(getFlavor(a));
           const fb = norm(getFlavor(b));
-          const cmp = fa.localeCompare(fb, locale());
+          const cmp = naturalCompare(fa, fb);
           if(cmp < 0) bestPid = pid;
         }
       }
@@ -1246,13 +1281,17 @@
         visible: (c.visible === false) ? false : true
       }))
       .filter(c => isAdminMode || c.visible !== false)
-      .sort((a, b) => catLabel(a).localeCompare(catLabel(b), locale()));
+      .sort((a, b) => naturalCompare(catLabel(a), catLabel(b)));
 
-    return [
+    const out = [
       { id: "all", label_hu: t("all"), label_en: t("all"), virtual: true },
-      ...cats,
-      { id: "soon", label_hu: t("soon"), label_en: t("soon"), virtual: true },
     ];
+    if(state.favorites.size || state.active === "favorites"){
+      out.push({ id: "favorites", label_hu: t("favorites"), label_en: t("favorites"), virtual: true });
+    }
+    out.push(...cats);
+    out.push({ id: "soon", label_hu: t("soon"), label_en: t("soon"), virtual: true });
+    return out;
   }
 
   function filterList() {
@@ -1278,6 +1317,8 @@
 
     if (state.active === "soon") {
       list = list.filter((p) => p.status === "soon");
+    } else if (state.active === "favorites") {
+      list = list.filter((p) => isFavorite(p.id));
     } else {
       if (state.active !== "all") list = list.filter((p) => String(p.categoryId) === String(state.active));
     }
@@ -1298,11 +1339,11 @@
         if (!map.has(key)) map.set(key, []);
         map.get(key).push(p);
       }
-      const keys = [...map.keys()].sort((a, b) => a.localeCompare(b, locale()));
+      const keys = [...map.keys()].sort((a, b) => naturalCompare(a, b));
       const out = [];
       for (const k of keys) {
         const items = map.get(k);
-        items.sort((a, b) => norm(getFlavor(a)).localeCompare(norm(getFlavor(b)), locale()));
+        items.sort((a, b) => naturalCompare(getFlavor(a), getFlavor(b)));
         out.push(...items);
       }
       return out;
@@ -1323,7 +1364,7 @@
     const cats = orderedCategories();
     for (const c of cats) {
       const btn = document.createElement("button");
-      btn.textContent = c.id === "all" ? t("all") : c.id === "soon" ? t("soon") : catLabel(c);
+      btn.textContent = c.id === "all" ? t("all") : c.id === "favorites" ? t("favorites") : c.id === "soon" ? t("soon") : catLabel(c);
       if (state.active === c.id) btn.classList.add("active");
       btn.onclick = () => {
         state.active = c.id;
@@ -1337,7 +1378,7 @@
 
   function getFeaturedListForAll(){
     const cats = (state.productsDoc.categories || []).filter(c => c && c.id && (c.featuredEnabled === false ? false : true));
-    cats.sort((a,b)=>catLabel(a).localeCompare(catLabel(b), locale()));
+    cats.sort((a,b)=>naturalCompare(catLabel(a), catLabel(b)));
     const out = [];
     for(const c of cats){
       const pid = state.featuredByCat.get(String(c.id));
@@ -1421,6 +1462,18 @@
       const badges = document.createElement("div");
       badges.className = "badges";
 
+      const favBtn = document.createElement("button");
+      favBtn.type = "button";
+      favBtn.className = `fav-btn${isFavorite(p.id) ? " is-active" : ""}`;
+      favBtn.setAttribute("aria-label", isFavorite(p.id) ? t("removeFav") : t("addFav"));
+      favBtn.setAttribute("title", isFavorite(p.id) ? t("removeFav") : t("addFav"));
+      favBtn.innerHTML = "❤";
+      favBtn.addEventListener("click", (e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+        toggleFavorite(p.id);
+      });
+
       if(featured){
         const b = document.createElement("div");
         b.className = "badge hot";
@@ -1459,6 +1512,7 @@
 
       hero.appendChild(img);
       hero.appendChild(badges);
+      hero.appendChild(favBtn);
       hero.appendChild(overlay);
 
       const body = document.createElement("div");
@@ -1883,6 +1937,15 @@
     $("#search").placeholder = "Keresés...";
   }
 
+  function initSearch(){
+    const input = $("#search");
+    if(!input) return;
+    input.addEventListener("input", () => {
+      state.search = input.value || "";
+      renderGrid();
+    });
+  }
+
   function initLang(){
     $("#langBtn").onclick = () => {
       state.lang = state.lang === "hu" ? "en" : "hu";
@@ -1964,12 +2027,14 @@
     applySyncParams();
     setLangUI();
     initLang();
+    initSearch();
 
     // if admin pushed live payload (same browser) use it first
     hydrateFromLivePayload();
 
     // cart (load before first render)
     state.cart = loadCart();
+    state.favorites = loadFavorites();
 
     // load from network (RAW) to be sure
     await loadAll({ forceBust:true });

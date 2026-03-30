@@ -20,6 +20,9 @@
     dirty: false,
     dirtyProducts: false,
     dirtySales: false,
+    productsStructuralDirty: false,
+    stockDeltaByProduct: new Map(),
+    stockAbsoluteByProduct: new Map(),
     saveTimer: null,
     shas: { products: null, sales: null },
     // hogy a public oldal biztosan megtalálja a RAW forrást (telefonon is)
@@ -118,6 +121,98 @@
 
   function escapeHtml(s){
     return String(s ?? "").replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
+  }
+
+
+  function naturalCompare(a, b){
+    return String(a ?? "").localeCompare(String(b ?? ""), "hu", { numeric: true, sensitivity: "base" });
+  }
+
+  function setProductStockValue(pid, nextValue, { absolute=false } = {}){
+    const n = Math.max(0, Number(nextValue || 0));
+    if(!pid) return n;
+    if(absolute){
+      state.stockAbsoluteByProduct.set(String(pid), n);
+      state.stockDeltaByProduct.delete(String(pid));
+    }
+    return n;
+  }
+
+  function adjustProductStockValue(pid, delta){
+    const key = String(pid || "");
+    if(!key) return;
+    const d = Number(delta || 0) || 0;
+    if(!d) return;
+    if(state.stockAbsoluteByProduct.has(key)){
+      state.stockAbsoluteByProduct.set(key, Math.max(0, Number(state.stockAbsoluteByProduct.get(key) || 0) + d));
+      return;
+    }
+    state.stockDeltaByProduct.set(key, Number(state.stockDeltaByProduct.get(key) || 0) + d);
+  }
+
+  function resetStockMergeState(){
+    state.productsStructuralDirty = false;
+    state.stockDeltaByProduct = new Map();
+    state.stockAbsoluteByProduct = new Map();
+  }
+
+  async function buildProductsSavePlan(cfg){
+    let docToSave = JSON.parse(JSON.stringify(state.doc || { categories: [], products: [], popups: [] }));
+    let sha = state.shas.products;
+
+    const stockOnly = !state.productsStructuralDirty && (state.stockDeltaByProduct.size || state.stockAbsoluteByProduct.size);
+    if(stockOnly){
+      const latest = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path: "data/products.json" });
+      sha = latest.sha || null;
+      const remoteDoc = JSON.parse(latest.content || "{}");
+      docToSave = Array.isArray(remoteDoc) ? { categories: [], products: remoteDoc, popups: [] } : (remoteDoc && typeof remoteDoc === "object" ? remoteDoc : { categories: [], products: [], popups: [] });
+      if(!Array.isArray(docToSave.categories)) docToSave.categories = [];
+      if(!Array.isArray(docToSave.products)) docToSave.products = [];
+      if(!Array.isArray(docToSave.popups)) docToSave.popups = [];
+
+      const pMap = new Map((docToSave.products || []).map(p => [String(p.id || ""), p]).filter(([id]) => id));
+      for(const [pid, abs] of state.stockAbsoluteByProduct.entries()){
+        const p = pMap.get(String(pid));
+        if(!p) continue;
+        p.stock = Math.max(0, Number(abs || 0));
+        if(p.status !== "soon") p.status = p.stock <= 0 ? "out" : ((p.status === "out") ? "ok" : p.status);
+      }
+      for(const [pid, delta] of state.stockDeltaByProduct.entries()){
+        const p = pMap.get(String(pid));
+        if(!p) continue;
+        p.stock = Math.max(0, Number(p.stock || 0) + Number(delta || 0));
+        if(p.status !== "soon") p.status = p.stock <= 0 ? "out" : ((p.status === "out") ? "ok" : p.status);
+      }
+    }
+
+    docToSave._meta = {
+      ...(docToSave._meta || {}),
+      rev: Date.now(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    state.doc = docToSave;
+    normalizeDoc();
+
+    return {
+      doc: JSON.parse(JSON.stringify(state.doc || { categories: [], products: [], popups: [] })),
+      sha
+    };
+  }
+
+  function rerenderWithInputState(selector, renderFn){
+    const active = document.querySelector(selector);
+    const hadFocus = !!active && document.activeElement === active;
+    const start = hadFocus && typeof active.selectionStart === "number" ? active.selectionStart : null;
+    const end = hadFocus && typeof active.selectionEnd === "number" ? active.selectionEnd : null;
+    renderFn();
+    if(!hadFocus) return;
+    const next = document.querySelector(selector);
+    if(!next) return;
+    try{
+      next.focus({ preventScroll: true });
+      if(start !== null && end !== null) next.setSelectionRange(Math.min(start, next.value.length), Math.min(end, next.value.length));
+    }catch{}
   }
 
   function monthInputValue(dateLike){
@@ -246,15 +341,7 @@
         label_hu: c.label_hu || c.id,
         label_en: c.label_en || c.label_hu || c.id,
         basePrice: Number(c.basePrice || 0),
-
-        // ✅ JD Vapes: külön kategória ár (üres/null => SV fallback)
-        basePriceJD: (c.basePriceJD === "" || c.basePriceJD === null || c.basePriceJD === undefined)
-          ? null
-          : (Number.isFinite(Number(c.basePriceJD)) ? Number(c.basePriceJD) : null),
-
         visible: (c.visible === false) ? false : true,
-        visibleJD: (c.visibleJD === false) ? false : true,
-
         featuredEnabled: (c.featuredEnabled === false) ? false : true
       }));
 
@@ -264,25 +351,18 @@
       status: (p.status === "ok" || p.status === "out" || p.status === "soon") ? p.status : "ok",
       stock: Math.max(0, Number(p.stock || 0)),
       visible: (p.visible === false) ? false : true,
-      visibleJD: (p.visibleJD === false) ? false : true,
-      // price lehet null/üres => kategória alapár
       price: (p.price === "" || p.price === null || p.price === undefined) ? null : (Number.isFinite(Number(p.price)) ? Number(p.price) : null),
-      // ✅ JD ár: üres/null => JD kategória ár (és ha az sincs, SV fallback)
-      priceJD: (p.priceJD === "" || p.priceJD === null || p.priceJD === undefined) ? null : (Number.isFinite(Number(p.priceJD)) ? Number(p.priceJD) : null),
       image: p.image || "",
       name_hu: p.name_hu || "",
-      name_en: p.name_en || "",
+      name_en: p.name_en || p.name_hu || "",
       flavor_hu: p.flavor_hu || "",
-      flavor_en: p.flavor_en || "",
-      // ✅ Csak hónap formátum: YYYY-MM
+      flavor_en: p.flavor_en || p.flavor_hu || "",
       soonEta: String(p.soonEta || p.eta || "").replace(/^(\d{4}-\d{2}).*$/, "$1")
     })).filter(p => p.id);
 
-    // Popups normalize
     state.doc.popups = (state.doc.popups || []).map(pp => ({
       id: String(pp.id || ""),
       enabled: (pp.enabled === false) ? false : true,
-      // rev: ha változik, a "ne mutasd többször" újra feloldódik
       rev: Number(pp.rev || pp.updatedAt || pp.createdAt || 0) || 0,
       title_hu: pp.title_hu || "Új termékek elérhetőek",
       title_en: pp.title_en || "New products available",
@@ -292,34 +372,32 @@
       updatedAt: Number(pp.updatedAt || 0) || 0
     })).filter(pp => pp.id);
 
-    // Sales normalize (kompatibilis a régi formátummal is)
-state.sales = state.sales.map(s => {
-  const legacyPid = s.productId || s.pid || s.product || "";
-  const legacyQty = s.qty || s.quantity || 1;
-  const legacyPrice = s.unitPrice || s.price || s.amount || 0;
+    state.sales = state.sales.map(s => {
+      const legacyPid = s.productId || s.pid || s.product || "";
+      const legacyQty = s.qty || s.quantity || 1;
+      const legacyPrice = s.unitPrice || s.price || s.amount || 0;
 
-  const items = Array.isArray(s.items)
-    ? s.items.map(it => ({
-        productId: String(it.productId || it.pid || ""),
-        qty: Math.max(1, Number.parseFloat(it.qty || it.quantity || 1) || 1),
-        unitPrice: Math.max(0, Number.parseFloat(it.unitPrice || it.price || 0) || 0)
-      })).filter(it => it.productId)
-    : (legacyPid ? [{
-        productId: String(legacyPid),
-        qty: Math.max(1, Number.parseFloat(legacyQty) || 1),
-        unitPrice: Math.max(0, Number.parseFloat(legacyPrice) || 0)
-      }] : []);
+      const items = Array.isArray(s.items)
+        ? s.items.map(it => ({
+            productId: String(it.productId || it.pid || ""),
+            qty: Math.max(1, Number.parseFloat(it.qty || it.quantity || 1) || 1),
+            unitPrice: Math.max(0, Number.parseFloat(it.unitPrice || it.price || 0) || 0)
+          })).filter(it => it.productId)
+        : (legacyPid ? [{
+            productId: String(legacyPid),
+            qty: Math.max(1, Number.parseFloat(legacyQty) || 1),
+            unitPrice: Math.max(0, Number.parseFloat(legacyPrice) || 0)
+          }] : []);
 
-  return {
-    id: String(s.id || ""),
-    date: String(s.date || s.day || s.createdAt || ""),
-    name: s.name || "",
-    payment: s.payment || s.method || "",
-    items
-  };
-}).filter(s => s.id);
+      return {
+        id: String(s.id || ""),
+        date: String(s.date || s.day || s.createdAt || ""),
+        name: s.name || "",
+        payment: s.payment || s.method || "",
+        items
+      };
+    }).filter(s => s.id);
   }
-
 
   function normalizeReservations(list){
     if(!Array.isArray(list)) return [];
@@ -331,26 +409,17 @@ state.sales = state.sales.map(s => {
 
       const confirmed = !!r.confirmed;
       const createdAt = Number(r.createdAt || r.ts || 0) || 0;
-
       let expiresAt = null;
       if(!confirmed){
         const ex = (r.expiresAt === null || r.expiresAt === undefined || r.expiresAt === "") ? null : Number(r.expiresAt || 0) || null;
         expiresAt = ex;
       }
 
-      const items = Array.isArray(r.items) ? r.items.map(it => {
-        const ujdRaw = (it.unitPriceJD === null || it.unitPriceJD === undefined || it.unitPriceJD === "")
-          ? (it.priceJD === null || it.priceJD === undefined || it.priceJD === "" ? null : it.priceJD)
-          : it.unitPriceJD;
-        const ujd = (ujdRaw === null || ujdRaw === undefined || ujdRaw === "") ? null : (Number.isFinite(Number(ujdRaw)) ? Math.max(0, Number(ujdRaw)) : null);
-
-        return {
-          productId: String(it.productId || it.pid || it.product || ""),
-          qty: Math.max(1, Number(it.qty || it.quantity || 1) || 1),
-          unitPrice: Math.max(0, Number(it.unitPrice || it.price || 0) || 0),
-          unitPriceJD: ujd
-        };
-      }).filter(it => it.productId) : [];
+      const items = Array.isArray(r.items) ? r.items.map(it => ({
+        productId: String(it.productId || it.pid || ""),
+        qty: Math.max(1, Number.parseFloat(it.qty || it.quantity || 1) || 1),
+        unitPrice: Math.max(0, Number.parseFloat(it.unitPrice || it.price || 0) || 0)
+      })).filter(it => it.productId) : [];
 
       out.push({
         id,
@@ -366,7 +435,6 @@ state.sales = state.sales.map(s => {
     return out;
   }
 
-
   function catById(id){
     return state.doc.categories.find(c => c.id === String(id)) || null;
   }
@@ -374,37 +442,15 @@ state.sales = state.sales.map(s => {
     return state.doc.products.find(p => p.id === String(id)) || null;
   }
 
-  function effectivePriceStore(p, store="sv"){
+  function effectivePrice(p){
     const num = (v)=> (v===null || v===undefined || v==="" ? null : Number(v));
-    const pickOverride = (key)=>{
-      const v = num(p && p[key]);
-      return (v!==null && Number.isFinite(v) && v>0) ? v : null;
-    };
-
-    if(store === "jd"){
-      const ov = pickOverride("priceJD");
-      if(ov !== null) return ov;
-
-      const c = catById(p.categoryId);
-      const bpjd = c ? num(c.basePriceJD) : null;
-      if(bpjd !== null && Number.isFinite(bpjd) && bpjd > 0) return bpjd;
-
-      // fallback: SV pricing
-      return effectivePriceStore(p, "sv");
-    }
-
-    // SV pricing (default)
-    const ov = pickOverride("price");
-    if(ov !== null) return ov;
+    const ov = num(p && p.price);
+    if(ov !== null && Number.isFinite(ov) && ov > 0) return ov;
 
     const c = catById(p.categoryId);
     const bp = c ? num(c.basePrice) : null;
-    const out = (bp !== null && Number.isFinite(bp) && bp > 0) ? bp : 0;
-    return out;
+    return (bp !== null && Number.isFinite(bp) && bp > 0) ? bp : 0;
   }
-
-  function effectivePrice(p){ return effectivePriceStore(p, "sv"); }
-  function effectivePriceJD(p){ return effectivePriceStore(p, "jd"); }
 
   function saleTotals(sale, catFilterId){
     // catFilterId: "all" or category id -> csak az adott kategória tételeit számoljuk
@@ -478,6 +524,7 @@ state.sales = state.sales.map(s => {
         initChartFilters(true);
         state.loaded = true;
         state.forceSourceSync = true;
+        resetStockMergeState();
 
         return { ok:true };
       }catch(e){
@@ -553,16 +600,15 @@ state.sales = state.sales.map(s => {
       if(p && p.status === "out") p.stock = 0;
       if(p && (!p.name_en || String(p.name_en).trim()==="")) p.name_en = p.name_hu || "";
     }
-    // _meta.rev: public old cache ne tudja felülírni a friss mentést
+    let productsDocForSave = JSON.parse(JSON.stringify(state.doc || { categories: [], products: [], popups: [] }));
+    let productsShaForSave = state.shas.products;
     if(state.dirtyProducts){
-      state.doc._meta = {
-        ...(state.doc._meta || {}),
-        rev: Date.now(),
-        updatedAt: new Date().toISOString(),
-      };
+      const plan = await buildProductsSavePlan(cfg);
+      productsDocForSave = plan.doc;
+      productsShaForSave = plan.sha;
     }
 
-    const productsText = JSON.stringify(state.doc, null, 2);
+    const productsText = JSON.stringify(productsDocForSave, null, 2);
     const salesText = JSON.stringify(state.sales, null, 2);
     const reservationsText = JSON.stringify(state.reservations, null, 2);
 
@@ -609,9 +655,9 @@ try{
         path: "data/products.json",
         message: "Update products.json",
         content: productsText,
-        sha: state.shas.products
+        sha: productsShaForSave
       }).then((pRes) => {
-        state.shas.products = pRes?.content?.sha || state.shas.products;
+        state.shas.products = pRes?.content?.sha || productsShaForSave || state.shas.products;
       })
     );
   }
@@ -684,6 +730,8 @@ if(wantReservations){
   }catch{}
 
   // ✅ ne reloadoljunk minden autosave után (lassú) — a state már friss
+  state.doc = productsDocForSave;
+  resetStockMergeState();
   state.dirtyProducts = false;
   state.dirtySales = false;
   state.dirtyReservations = false;
@@ -710,7 +758,10 @@ if(wantReservations){
 
 function markDirty(flags){
   const f = flags || {};
-  if(f.products) state.dirtyProducts = true;
+  if(f.products){
+    state.dirtyProducts = true;
+    if(!f.stockOnly) state.productsStructuralDirty = true;
+  }
   if(f.sales) state.dirtySales = true;
   if(f.reservations) state.dirtyReservations = true;
   queueAutoSave();
@@ -848,7 +899,7 @@ function markDirty(flags){
   }
 
   function renderCategories(){
-    const cats = [...state.doc.categories].sort((a,b)=> (a.label_hu||a.id).localeCompare(b.label_hu||b.id,"hu"));
+    const cats = [...state.doc.categories].sort((a,b)=> naturalCompare(a.label_hu||a.id, b.label_hu||b.id));
 
     let rows = cats.map(c => `
       <tr>
@@ -856,9 +907,7 @@ function markDirty(flags){
         <td><input data-cid="${escapeHtml(c.id)}" data-k="label_hu" value="${escapeHtml(c.label_hu)}"></td>
         <td><input data-cid="${escapeHtml(c.id)}" data-k="label_en" value="${escapeHtml(c.label_en)}"></td>
         <td style="width:150px;"><input data-cid="${escapeHtml(c.id)}" data-k="basePrice" type="number" min="0" value="${Number(c.basePrice||0)}"></td>
-        <td style="width:150px;"><input data-cid="${escapeHtml(c.id)}" data-k="basePriceJD" type="number" min="0" value="${Number((c.basePriceJD ?? c.basePrice ?? 0) || 0)}"></td>
         <td style="width:90px;text-align:center;"><input type="checkbox" data-cid="${escapeHtml(c.id)}" data-k="visible"${c.visible===false?"":" checked"}></td>
-        <td style="width:90px;text-align:center;"><input type="checkbox" data-cid="${escapeHtml(c.id)}" data-k="visibleJD"${c.visibleJD===false?"":" checked"}></td>
         <td style="width:120px;text-align:center;"><input type="checkbox" data-cid="${escapeHtml(c.id)}" data-k="featuredEnabled"${c.featuredEnabled===false?"":" checked"}></td>
         <td style="width:110px;"><button class="danger" data-delcat="${escapeHtml(c.id)}">Töröl</button></td>
       </tr>
@@ -871,7 +920,7 @@ function markDirty(flags){
       </div>
       <table class="table">
         <thead>
-          <tr><th>ID</th><th>HU</th><th>EN</th><th>Alap ár SV (Ft)</th><th>Alap ár JD (Ft)</th><th>SV</th><th>JD</th><th>Felkapott</th><th></th></tr>
+          <tr><th>ID</th><th>HU</th><th>EN</th><th>Alap ár (Ft)</th><th>Látható</th><th>Felkapott</th><th></th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
@@ -883,8 +932,7 @@ function markDirty(flags){
         <div class="form-grid">
           <div class="field third"><label>ID (pl. elf)</label><input id="newCid" placeholder="elf"></div>
           <div class="field third"><label>HU</label><input id="newChu" placeholder="ELF"></div>
-          <div class="field third"><label>Alap ár SV</label><input id="newCprice" type="number" min="0" value="0"></div>
-          <div class="field third"><label>Alap ár JD</label><input id="newCpriceJD" type="number" min="0" value="0"></div>
+          <div class="field third"><label>Alap ár</label><input id="newCprice" type="number" min="0" value="0"></div>
         </div>
       `;
       openModal("Új kategória", "Nem prompt, rendes modal 😄", body, [
@@ -895,19 +943,14 @@ function markDirty(flags){
           if(state.doc.categories.some(x => x.id === id)) return;
 
           const hu = ($("#newChu").value||"").trim() || id;
-
           const bp = Math.max(0, Number($("#newCprice").value||0));
-          const bpjdInput = $("#newCpriceJD") ? $("#newCpriceJD").value : "";
-          const bpjd = (bpjdInput === "" ? bp : Math.max(0, Number(bpjdInput||0)));
 
           state.doc.categories.push({
             id,
             label_hu: hu,
-            label_en: hu, // ✅ EN nem kell külön, maradjon HU
+            label_en: hu,
             basePrice: bp,
-            basePriceJD: bpjd,
             visible: true,
-            visibleJD: true,
             featuredEnabled: true
           });
           closeModal();
@@ -924,14 +967,11 @@ function markDirty(flags){
         const c = catById(id);
         if(!c) return;
         if(k === "basePrice") c.basePrice = Math.max(0, Number(inp.value||0));
-        else if(k === "basePriceJD") c.basePriceJD = Math.max(0, Number(inp.value||0));
         else if(k === "visible") c.visible = !!inp.checked;
-        else if(k === "visibleJD") c.visibleJD = !!inp.checked;
         else if(k === "featuredEnabled") c.featuredEnabled = !!inp.checked;
         else c[k] = inp.value;
         markDirty({ products:true });
       };
-      // checkbox → change, a többi → input
       if(inp.type === "checkbox") inp.onchange = apply;
       else inp.oninput = apply;
     });
@@ -943,7 +983,6 @@ function markDirty(flags){
     $("#panelCategories").querySelectorAll("button[data-delcat]").forEach(btn => {
       btn.onclick = () => {
         const id = btn.dataset.delcat;
-        // ha használja termék, ne engedjük
         if(state.doc.products.some(p => p.categoryId === id)) return;
         state.doc.categories = state.doc.categories.filter(c => c.id !== id);
         renderAll();
@@ -951,8 +990,6 @@ function markDirty(flags){
       };
     });
   }
-
-  
 
   function renameCategory(oldId){
     const c = catById(oldId);
@@ -1006,18 +1043,18 @@ function renderProducts(){
       list = list.filter(p => (`${p.name_hu} ${p.name_en} ${p.flavor_hu} ${p.flavor_en}`).toLowerCase().includes(q));
     }
 
-    // rend: ok, soon, out (admin nézethez)
     const rank = (s) => s === "ok" ? 0 : (s === "soon" ? 1 : 2);
     list.sort((a,b) => {
       const ra = rank(a.status), rb = rank(b.status);
       if(ra !== rb) return ra - rb;
-      return (a.name_hu||a.name_en||"").localeCompare((b.name_hu||b.name_en||""),"hu");
+      const byName = naturalCompare(a.name_hu||a.name_en||"", b.name_hu||b.name_en||"");
+      if(byName !== 0) return byName;
+      return naturalCompare(a.flavor_hu||a.flavor_en||"", b.flavor_hu||b.flavor_en||"");
     });
 
     const rows = list.map(p => {
       const c = catById(p.categoryId);
       const eff = effectivePrice(p);
-      const effJD = effectivePriceJD(p);
       const img = (p.image || "").trim();
 
       return `
@@ -1029,7 +1066,7 @@ function renderProducts(){
                 <div style="font-weight:900;">${escapeHtml(p.name_hu||p.name_en||"—")} <span class="small-muted">• ${escapeHtml(p.flavor_hu||p.flavor_en||"")}</span></div>
                 <div class="small-muted">
                   Kategória: <b>${escapeHtml(c ? (c.label_hu||c.id) : "—")}</b>
-                  • Ár SV: <b>${eff.toLocaleString("hu-HU")} Ft</b> • Ár JD: <b>${effJD.toLocaleString("hu-HU")} Ft</b>
+                  • Ár: <b>${eff.toLocaleString("hu-HU")} Ft</b>
                   • Készlet: <b>${p.status==="soon" ? "—" : p.stock}</b>
                   ${p.status==="soon" && p.soonEta ? `• Várható: <b>${escapeHtml(p.soonEta)}</b>` : ""}
                 </div>
@@ -1037,8 +1074,7 @@ function renderProducts(){
             </div>
           </div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <label class="chk"><input type="checkbox" data-pid="${escapeHtml(p.id)}" data-k="visible"${p.visible===false?"":" checked"}> SV</label>
-            <label class="chk"><input type="checkbox" data-pid="${escapeHtml(p.id)}" data-k="visibleJD"${p.visibleJD===false?"":" checked"}> JD</label>
+            <label class="chk"><input type="checkbox" data-pid="${escapeHtml(p.id)}" data-k="visible"${p.visible===false?"":" checked"}> Látható</label>
             <select data-pid="${escapeHtml(p.id)}" data-k="categoryId">
               ${state.doc.categories.map(cc => `<option value="${escapeHtml(cc.id)}"${cc.id===p.categoryId?" selected":""}>${escapeHtml(cc.label_hu||cc.id)}</option>`).join("")}
             </select>
@@ -1048,8 +1084,7 @@ function renderProducts(){
               <option value="soon"${p.status==="soon"?" selected":""}>soon</option>
             </select>
             <input data-pid="${escapeHtml(p.id)}" data-k="stock" type="number" min="0" value="${p.stock}" style="width:110px;">
-            <input data-pid="${escapeHtml(p.id)}" data-k="price" type="number" min="0" value="${p.price===null? "" : p.price}" placeholder="(SV kat ár)" style="width:150px;">
-            <input data-pid="${escapeHtml(p.id)}" data-k="priceJD" type="number" min="0" value="${(p.priceJD===null||p.priceJD===undefined)? "" : p.priceJD}" placeholder="(JD kat ár)" style="width:150px;">
+            <input data-pid="${escapeHtml(p.id)}" data-k="price" type="number" min="0" value="${p.price===null? "" : p.price}" placeholder="(kat ár)" style="width:150px;">
             <button class="ghost" data-edit="${escapeHtml(p.id)}">Szerkeszt</button>
             <button class="danger" data-del="${escapeHtml(p.id)}">Töröl</button>
           </div>
@@ -1070,7 +1105,10 @@ function renderProducts(){
     `;
 
     $("#prodCat").onchange = () => { state.filters.productsCat = $("#prodCat").value; renderProducts(); };
-    $("#prodSearch").oninput = () => { state.filters.productsSearch = $("#prodSearch").value; renderProducts(); };
+    $("#prodSearch").oninput = () => {
+      state.filters.productsSearch = $("#prodSearch").value;
+      rerenderWithInputState("#prodSearch", renderProducts);
+    };
 
     $("#btnAddProd").onclick = () => openProductModal(null);
 
@@ -1082,21 +1120,19 @@ function renderProducts(){
         if(!p) return;
 
         if(k === "stock"){
-          p.stock = Math.max(0, Number(el.value||0));
+          p.stock = setProductStockValue(pid, el.value, { absolute:true });
           if(p.stock <= 0 && p.status !== "soon") p.status = "out";
+          markDirty({ products:true, stockOnly:true });
+          return;
         }else if(k === "price"){
           p.price = (el.value === "" ? null : Math.max(0, Number(el.value||0)));
-        }else if(k === "priceJD"){
-          p.priceJD = (el.value === "" ? null : Math.max(0, Number(el.value||0)));
         }else if(k === "status"){
           p.status = el.value;
-          if(p.status === "out") p.stock = 0;
+          if(p.status === "out") p.stock = setProductStockValue(pid, 0, { absolute:true });
         }else if(k === "categoryId"){
           p.categoryId = el.value;
         }else if(k === "visible"){
           p.visible = !!el.checked;
-        }else if(k === "visibleJD"){
-          p.visibleJD = !!el.checked;
         }
 
         markDirty({ products:true });
@@ -1113,7 +1149,6 @@ function renderProducts(){
     $("#panelProducts").querySelectorAll("button[data-del]").forEach(b => {
       b.onclick = () => {
         const id = b.dataset.del;
-        // ha eladásban van, ne engedjük törölni
         if(state.sales.some(s => s.items.some(it => it.productId === id))) return;
         state.doc.products = state.doc.products.filter(p => p.id !== id);
         renderAll();
@@ -1135,10 +1170,8 @@ function renderProducts(){
       name_en: "",
       flavor_hu: "",
       flavor_en: "",
-      soonEta: "", // ✅ Csak hónap formátum
-      visible: true,
-      visibleJD: true,
-      priceJD: null
+      soonEta: "",
+      visible: true
     };
 
     const body = document.createElement("div");
@@ -1160,13 +1193,10 @@ function renderProducts(){
 
         <div class="field third"><label>Várható hónap (csak "soon")</label><input id="p_eta" type="month" value="${escapeHtml(p.soonEta||"")}" placeholder="YYYY-MM"></div>
 
-        <div class="field third"><label>Látható (SV)</label><label class="chk" style="justify-content:flex-start;"><input type="checkbox" id="p_visible" ${p.visible===false?"":"checked"}> SV oldalon</label></div>
-
-        <div class="field third"><label>Látható (JD)</label><label class="chk" style="justify-content:flex-start;"><input type="checkbox" id="p_visibleJD" ${p.visibleJD===false?"":"checked"}> JD oldalon</label></div>
+        <div class="field third"><label>Látható</label><label class="chk" style="justify-content:flex-start;"><input type="checkbox" id="p_visible" ${p.visible===false?"":"checked"}> Public oldalon</label></div>
 
         <div class="field third"><label>Készlet</label><input id="p_stock" type="number" min="0" value="${p.stock}"></div>
-        <div class="field third"><label>Ár SV (Ft) — üres: SV kategória ár</label><input id="p_price" type="number" min="0" value="${p.price===null?"":p.price}"></div>
-        <div class="field third"><label>Ár JD (Ft) — üres: JD kategória ár</label><input id="p_priceJD" type="number" min="0" value="${(p.priceJD===null||p.priceJD===undefined)?"":p.priceJD}"></div>
+        <div class="field third"><label>Ár (Ft) — üres: kategória ár</label><input id="p_price" type="number" min="0" value="${p.price===null?"":p.price}"></div>
         <div class="field full"><label>Kép URL</label><input id="p_img" value="${escapeHtml(p.image)}"></div>
 
         <div class="field third"><label>Termék neve</label><input id="p_name" value="${escapeHtml(p.name_hu)}"></div>
@@ -1187,16 +1217,13 @@ function renderProducts(){
           categoryId: $("#p_cat").value,
           status: $("#p_status").value,
           visible: !!$("#p_visible").checked,
-          visibleJD: !!$("#p_visibleJD").checked,
           stock: Math.max(0, Number($("#p_stock").value||0)),
           price: ($("#p_price").value === "" ? null : Math.max(0, Number($("#p_price").value||0))),
-          priceJD: ($("#p_priceJD").value === "" ? null : Math.max(0, Number($("#p_priceJD").value||0))),
           image: ($("#p_img").value||"").trim(),
           name_hu: ($("#p_name").value||"").trim(),
           name_en: ($("#p_name").value||"").trim(),
           flavor_hu: ($("#p_fhu").value||"").trim(),
           flavor_en: ($("#p_fen").value||"").trim(),
-          // ✅ Csak hónap formátumot fogadunk el
           soonEta: ($("#p_eta").value||"").replace(/^(\d{4}-\d{2}).*$/, "$1")
         };
         if(np.status !== "soon") np.soonEta = "";
@@ -1213,7 +1240,6 @@ function renderProducts(){
       }}
     ]);
 
-    // out -> stock automatikusan 0 + lock
     const stSel = $("#p_status");
     const stInp = $("#p_stock");
     const syncStockLock = () => {
@@ -1284,7 +1310,7 @@ function renderProducts(){
     `;
 
     $("#salesCat").onchange = () => { state.filters.salesCat = $("#salesCat").value; renderSales(); drawChart(); };
-    $("#salesSearch").oninput = () => { state.filters.salesSearch = $("#salesSearch").value; renderSales(); };
+    $("#salesSearch").oninput = () => { state.filters.salesSearch = $("#salesSearch").value; rerenderWithInputState("#salesSearch", renderSales); };
 
     $("#btnAddSale").onclick = () => openSaleModal();
 
@@ -1328,7 +1354,7 @@ function openProductPicker(opts = {}){
     const qEl = body.querySelector("#pp_q");
     const listEl = body.querySelector("#pp_list");
 
-    const cats = [...state.doc.categories].sort((a,b)=> (a.label_hu||a.id).localeCompare(b.label_hu||b.id,"hu"));
+    const cats = [...state.doc.categories].sort((a,b)=> naturalCompare(a.label_hu||a.id, b.label_hu||b.id));
 
     const render = () => {
       const q = String(qEl.value || "").trim().toLowerCase();
@@ -1354,14 +1380,13 @@ function openProductPicker(opts = {}){
 
       const renderGroup = (title, arr) => {
         if(!arr || !arr.length) return;
-        arr.sort((a,b)=> prodLabel(a).localeCompare(prodLabel(b),"hu"));
+        arr.sort((a,b)=> naturalCompare(prodLabel(a), prodLabel(b)));
         const items = arr.map(p => {
           const img = (p.image || "").trim();
           const thumb = img
             ? `<img class="picker-thumb" src="${escapeHtml(img)}" alt="" loading="lazy" onerror="this.style.display='none'">`
             : `<div class="picker-thumb ph">SV</div>`;
           const eff = effectivePrice(p);
-      const effJD = effectivePriceJD(p);
           const stockTxt = (p.status === "out") ? "Elfogyott" : (p.status === "soon" ? "Hamarosan" : `Készlet: ${Number(p.stock||0)}`);
           return `
             <button type="button" class="picker-item" data-pid="${escapeHtml(p.id)}">
@@ -1555,6 +1580,7 @@ function openProductPicker(opts = {}){
           if(!p) continue;
           const delta = Number(newQtyMap.get(pid) || 0) - Number(oldQtyMap.get(pid) || 0);
           p.stock = Math.max(0, Number(p.stock || 0) - delta);
+          adjustProductStockValue(pid, -delta);
           if(p.stock <= 0){
             p.stock = 0;
             if(p.status !== "soon") p.status = "out";
@@ -1585,7 +1611,7 @@ function openProductPicker(opts = {}){
 
         closeModal();
         renderAll();
-        markDirty({ products:true, sales:true, reservations: !!(pre && pre.fromReservationId) });
+        markDirty({ products:true, sales:true, reservations: !!(pre && pre.fromReservationId), stockOnly:true });
       }}
     ]);
   }
@@ -1922,12 +1948,13 @@ function deleteSale(id){
       const p = prodById(it.productId);
       if(!p) continue;
       p.stock = Math.max(0, Number(p.stock||0) + Number(it.qty||0));
+      adjustProductStockValue(it.productId, Number(it.qty||0));
       if(p.stock > 0 && p.status === "out") p.status = "ok";
     }
 
     state.sales.splice(idx, 1);
     renderAll();
-    markDirty({ products:true, sales:true });
+    markDirty({ products:true, sales:true, stockOnly:true });
   }
 
   function renderChartPanel(){
