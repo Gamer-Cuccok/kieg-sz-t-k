@@ -735,11 +735,11 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774911608254,
-    "updatedAt": "2026-03-30T23:00:08.254Z",
+    "rev": 1774911621036,
+    "updatedAt": "2026-03-30T23:00:21.036Z",
     "secretAccess": {
       "passwordHash": "",
-      "durationMs": 3600000
+      "durationMs": 60000
     }
   }
 }
