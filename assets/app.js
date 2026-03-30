@@ -407,7 +407,10 @@
           <div id=\"svCartTotals\" class=\"cart-totals\" style=\"display:none;\"></div>
         </div>
         <div class="cart-foot">
-          <button type="button" class="cart-action-btn" id="svCartActionBtn" disabled>${isAdminMode ? "Eladás rögzítése" : "Foglalás"}</button>
+          <div class="cart-foot-actions">
+            <button type="button" class="ghost" id="svCartClearBtn" disabled>Kosár ürítése</button>
+            <button type="button" class="cart-action-btn" id="svCartActionBtn" disabled>${isAdminMode ? "Eladás rögzítése" : "Foglalás"}</button>
+          </div>
         </div>
       </div>
     `;
@@ -428,6 +431,11 @@
       return reservationFromCart();
     });
 
+    document.querySelector("#svCartClearBtn")?.addEventListener("click", (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      clearCartAll({ toast: true });
+    });
+
     document.addEventListener("keydown", (e)=>{
       if(e.key === "Escape" && state.cartOpen) toggleCart(false);
     });
@@ -443,10 +451,24 @@
   }
 
   function updateCartActionBtn(){
+    const total = cartCount();
     const btn = document.querySelector("#svCartActionBtn");
-    if(!btn) return;
-    btn.textContent = isAdminMode ? "Eladás rögzítése" : "Foglalás";
-    btn.disabled = cartCount() <= 0;
+    if(btn){
+      btn.textContent = isAdminMode ? "Eladás rögzítése" : "Foglalás";
+      btn.disabled = total <= 0;
+    }
+    const clearBtn = document.querySelector("#svCartClearBtn");
+    if(clearBtn) clearBtn.disabled = total <= 0;
+  }
+
+  function clearCartAll({ toast=false } = {}){
+    if(cartCount() <= 0) return;
+    state.cart = new Map();
+    saveCart();
+    updateCartBadge();
+    if(state.cartOpen) renderCart();
+    renderGrid();
+    if(toast) showToast("Kosár ürítve.");
   }
 
   let toastTimer = null;
@@ -711,7 +733,7 @@
         <div class="small-muted" style="margin-top:10px;">A foglalás 2 nap múlva automatikusan lejár!</div>
         <div class="cart-confirm-actions">
           <button type="button" class="ghost" id="svResNo">Mégse</button>
-          <button type="button" class="primary" id="svResYes" disabled>Megerősítés</button>
+          <button type="button" class="primary" id="svResYes">Megerősítés</button>
         </div>
       </div>
     `;
@@ -723,8 +745,6 @@
     const close = () => { try{ m.remove(); }catch{} };
     btnNo?.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); close(); });
 
-    // 3s safety delay
-    setTimeout(()=>{ try{ if(btnYes) btnYes.disabled = false; }catch{} }, 3000);
 
     function makeId(){
       return `r_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
@@ -980,7 +1000,18 @@
         items: items.map(it => ({ productId: it.productId, qty: it.qty, unitPrice: it.unitPrice }))
       };
 
-      await createReservationViaApi(reservation);
+      const apiUrl = getReserveApiUrl();
+      if(apiUrl){
+        await createReservationViaApi(reservation);
+      }else{
+        const cfg = await ensureWriteCfgInteractive();
+        if(!cfg){
+          const e = new Error('NO_RES_API');
+          e.code = 'NO_RES_API';
+          throw e;
+        }
+        await appendReservationToGithub(cfg, reservation);
+      }
 
 
       try{
