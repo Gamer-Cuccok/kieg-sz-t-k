@@ -7,7 +7,6 @@
     branch: "sv_branch",
     token: "sv_token",
     resApi: "sv_res_api",
-    secretPass: "sv_secret_pass",
   };
 
   const state = {
@@ -53,6 +52,44 @@
   }
 
   
+  function sha256Hex(text){
+    const str = String(text ?? "");
+    if(!(globalThis.crypto && crypto.subtle && globalThis.TextEncoder)){
+      return Promise.resolve(str.trim().toLowerCase());
+    }
+    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(str)).then((buf) => {
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+    }).catch(() => str.trim().toLowerCase());
+  }
+
+  function ensureSecretAccessMeta(){
+    if(!state.doc || typeof state.doc !== "object") state.doc = { categories: [], products: [], popups: [] };
+    if(!state.doc._meta || typeof state.doc._meta !== "object") state.doc._meta = {};
+    if(!state.doc._meta.secretAccess || typeof state.doc._meta.secretAccess !== "object") state.doc._meta.secretAccess = {};
+    const sa = state.doc._meta.secretAccess;
+    sa.passwordHash = String(sa.passwordHash || "").trim().toLowerCase();
+    sa.durationMs = Math.max(60_000, Number(sa.durationMs || 3_600_000) || 3_600_000);
+    return sa;
+  }
+
+  async function syncSecretSettingsFromPanel(){
+    const minutesEl = $("#cfgSecretMinutes");
+    const passEl = $("#cfgSecretPassword");
+    const secretAccess = ensureSecretAccessMeta();
+
+    if(minutesEl){
+      const mins = Math.max(1, Number(minutesEl.value || (secretAccess.durationMs / 60000) || 60) || 60);
+      secretAccess.durationMs = mins * 60_000;
+    }
+
+    if(passEl){
+      const nextPassword = String(passEl.value || "").trim();
+      if(nextPassword){
+        secretAccess.passwordHash = String(await sha256Hex(nextPassword)).trim().toLowerCase();
+      }
+    }
+  }
+
   const modalStack = [];
 
   function openModal(title, sub, bodyEl, actions){
@@ -127,13 +164,6 @@
 
   function naturalCompare(a, b){
     return String(a ?? "").localeCompare(String(b ?? ""), "hu", { numeric: true, sensitivity: "base" });
-  }
-
-  function secretHash(value){
-    const s = String(value ?? "").trim();
-    let h = 5381;
-    for(let i=0;i<s.length;i++) h = ((h << 5) + h) ^ s.charCodeAt(i);
-    return (h >>> 0).toString(16);
   }
 
   function setProductStockValue(pid, nextValue, { absolute=false } = {}){
@@ -308,17 +338,12 @@
 
   /* ---------- Settings ---------- */
   function getCfg(){
-    const secretInput = $("#cfgSecretPass");
-    const committedSecret = secretInput && secretInput.dataset.committed === "1"
-      ? String(secretInput.value || "").trim()
-      : (localStorage.getItem(LS.secretPass) || "").trim();
     return {
       owner: ($("#cfgOwner")?.value || "").trim(),
       repo: ($("#cfgRepo")?.value || "").trim(),
       branch: ($("#cfgBranch")?.value || "main").trim() || "main",
       token: ($("#cfgToken")?.value || "").trim(),
-      resApi: ($("#cfgResApi")?.value || "").trim(),
-      secretPass: committedSecret
+      resApi: ($("#cfgResApi")?.value || "").trim()
     };
   }
   function loadCfg(){
@@ -327,9 +352,8 @@
     const branch = localStorage.getItem(LS.branch) || "main";
     const token = localStorage.getItem(LS.token) || "";
     const resApi = localStorage.getItem(LS.resApi) || "";
-    const secretPass = localStorage.getItem(LS.secretPass) || "";
 
-    return { owner, repo, branch, token, resApi, secretPass };
+    return { owner, repo, branch, token, resApi };
   }
   function saveCfg(cfg){
     localStorage.setItem(LS.owner, cfg.owner);
@@ -337,7 +361,6 @@
     localStorage.setItem(LS.branch, cfg.branch);
     localStorage.setItem(LS.token, cfg.token);
     localStorage.setItem(LS.resApi, cfg.resApi || "");
-    localStorage.setItem(LS.secretPass, cfg.secretPass || "");
   }
 
   /* ---------- Data logic ---------- */
@@ -348,6 +371,7 @@
     if(!Array.isArray(state.doc.products)) state.doc.products = [];
     if(!Array.isArray(state.doc.popups)) state.doc.popups = [];
     if(!Array.isArray(state.sales)) state.sales = [];
+    ensureSecretAccessMeta();
 
     state.doc.categories = state.doc.categories
       .filter(c => c && c.id)
@@ -358,7 +382,7 @@
         basePrice: Number(c.basePrice || 0),
         visible: (c.visible === false) ? false : true,
         featuredEnabled: (c.featuredEnabled === false) ? false : true,
-        secret: (c.secret === true || c.encrypted === true || c.private === true)
+        secret: c.secret === true
       }));
 
     state.doc.products = state.doc.products.map(p => ({
@@ -367,7 +391,7 @@
       status: (p.status === "ok" || p.status === "out" || p.status === "soon") ? p.status : "ok",
       stock: Math.max(0, Number(p.stock || 0)),
       visible: (p.visible === false) ? false : true,
-      secret: (p.secret === true || p.encrypted === true || p.private === true),
+      secret: p.secret === true,
       price: (p.price === "" || p.price === null || p.price === undefined) ? null : (Number.isFinite(Number(p.price)) ? Number(p.price) : null),
       image: p.image || "",
       name_hu: p.name_hu || "",
@@ -457,36 +481,6 @@
   }
   function prodById(id){
     return state.doc.products.find(p => p.id === String(id)) || null;
-  }
-
-  function categoryIsSecret(c){
-    return !!(c && c.secret === true);
-  }
-
-  function productIsSecret(p){
-    if(!p) return false;
-    if(p.secret === true) return true;
-    return categoryIsSecret(catById(p.categoryId));
-  }
-
-  function ensureSecretMetaFromSettings(){
-    if(!state.doc || typeof state.doc !== "object") state.doc = { categories: [], products: [], popups: [] };
-    if(!state.doc._meta || typeof state.doc._meta !== "object") state.doc._meta = {};
-    const input = $("#cfgSecretPass");
-    if(input){
-      const raw = String(input.value || "").trim();
-      const committed = input.dataset.committed === "1";
-      if(committed){
-        if(raw) state.doc._meta.secretPasswordHash = secretHash(raw);
-        else delete state.doc._meta.secretPasswordHash;
-        return;
-      }
-      const saved = String(loadCfg().secretPass || "").trim();
-      if(saved && raw === saved) state.doc._meta.secretPasswordHash = secretHash(saved);
-      return;
-    }
-    const saved = String(loadCfg().secretPass || "").trim();
-    if(saved) state.doc._meta.secretPasswordHash = secretHash(saved);
   }
 
   function effectivePrice(p){
@@ -640,9 +634,10 @@
     state.dirty = false;
     setSaveStatus("busy","Mentés...");
 
+    await syncSecretSettingsFromPanel();
+
     // biztos rend
     normalizeDoc();
-    ensureSecretMetaFromSettings();
 
     for(const p of (state.doc.products||[])){
       if(p && p.status === "out") p.stock = 0;
@@ -854,7 +849,9 @@ function markDirty(flags){
 
   function renderSettings(){
     const cfg = loadCfg();
-    const hasSecret = !!String(state.doc?._meta?.secretPasswordHash || "").trim();
+    const secretAccess = ensureSecretAccessMeta();
+    const secretMinutes = Math.max(1, Math.round(Number(secretAccess.durationMs || 3_600_000) / 60000) || 60);
+
     $("#panelSettings").innerHTML = `
       <div class="small-muted">GitHub mentés (token localStorage-ben). Branch: ha rossz, automatikusan próbál main/master.</div>
       <div class="form-grid" style="margin-top:12px;">
@@ -863,7 +860,6 @@ function markDirty(flags){
         <div class="field third"><label>Branch</label><input id="cfgBranch" value="${escapeHtml(cfg.branch)}" placeholder="main" /></div>
         <div class="field full"><label>Token</label><input id="cfgToken" value="${escapeHtml(cfg.token)}" type="password" placeholder="ghp_..." /></div>
         <div class="field full"><label>Foglalás API (token nélkül a felhasználóknak)</label><input id="cfgResApi" value="${escapeHtml(cfg.resApi || '')}" placeholder="https://... (Cloudflare Worker URL)" /></div>
-        <div class="field full"><label>Titkos termékek jelszava</label><input id="cfgSecretPass" value="${escapeHtml(cfg.secretPass || '')}" type="password" placeholder="Csak ezt beírva jelennek meg a titkos termékek"></div>
       </div>
       <div class="actions">
         <button class="ghost" id="btnLoad">Betöltés</button>
@@ -881,9 +877,16 @@ function markDirty(flags){
             <option value="1000" selected>1000 ms (alap)</option>
           </select>
         </div>
+        <div class="field third">
+          <label>Titkos jelszó</label>
+          <input id="cfgSecretPassword" type="password" value="" placeholder="Új jelszó megadása" autocomplete="new-password" />
+        </div>
+        <div class="field third">
+          <label>Titkos hozzáférés ideje (perc)</label>
+          <input id="cfgSecretMinutes" type="number" min="1" value="${secretMinutes}">
+        </div>
         <div class="field full">
-          <div class="small-muted">Minél nagyobb, annál kevesebb GitHub hívás (mobilon stabilabb).</div>
-          <div class="small-muted" style="margin-top:8px;">Titkos jelszó most: <b>${hasSecret ? "beállítva" : "nincs beállítva"}</b>. A jelszó hash-ként kerül a products.json meta részébe.</div>
+          <div class="small-muted">A felhasználó a keresőbe írja be a jelszót. A titkos nézet ennyi percig marad aktív újratöltés után is.</div>
         </div>
       </div>
 
@@ -901,9 +904,8 @@ function markDirty(flags){
     $("#btnLoad").onclick = loadData;
     $("#btnSave").onclick = saveDataNow;
 
-    // Sync link generálás (katalógus URL + query paramok)
     try{
-      const basePath = location.pathname.replace(/\/admin\.html.*$/,"/"); // /repo/ vagy /
+      const basePath = location.pathname.replace(/\/admin\.html.*$/,"/");
       const base = location.origin + basePath;
       const u = new URL(base);
       if(cfg.owner) u.searchParams.set("sv_owner", cfg.owner);
@@ -920,7 +922,6 @@ function markDirty(flags){
           await navigator.clipboard.writeText(link);
           setSaveStatus("ok","Sync link másolva ✅");
         }catch{
-          // fallback
           try{
             inp.select();
             document.execCommand("copy");
@@ -929,28 +930,10 @@ function markDirty(flags){
         }
       };
     }catch{}
-    ["cfgOwner","cfgRepo","cfgBranch","cfgToken","cfgResApi","cfgSecretPass"].forEach(id => {
-      $("#"+id).addEventListener("input", () => {
-        if(id === "cfgSecretPass"){
-          $("#"+id).dataset.committed = "0";
-          return;
-        }
-        saveCfg(getCfg());
-      });
+    ["cfgOwner","cfgRepo","cfgBranch","cfgToken","cfgResApi"].forEach(id => {
+      $("#"+id).addEventListener("input", () => saveCfg(getCfg()));
     });
-    const secretInp = $("#cfgSecretPass");
-    if(secretInp){
-      const commitSecret = () => {
-        secretInp.dataset.committed = "1";
-        saveCfg(getCfg());
-        ensureSecretMetaFromSettings();
-        markDirty({ products:true });
-      };
-      secretInp.addEventListener("change", commitSecret);
-      secretInp.addEventListener("blur", commitSecret);
-    }
 
-    // Auto-mentés késleltetés (lokális beállítás)
     try{
       const sel = $("#cfgAutosave");
       if(sel){
@@ -964,6 +947,21 @@ function markDirty(flags){
       }
     }catch{}
 
+    const secretMinutesEl = $("#cfgSecretMinutes");
+    if(secretMinutesEl){
+      secretMinutesEl.addEventListener("input", () => {
+        const sa = ensureSecretAccessMeta();
+        sa.durationMs = Math.max(60_000, (Math.max(1, Number(secretMinutesEl.value || 60) || 60) * 60_000));
+        markDirty({ products:true });
+      });
+    }
+
+    const secretPassEl = $("#cfgSecretPassword");
+    if(secretPassEl){
+      secretPassEl.addEventListener("change", () => {
+        if(String(secretPassEl.value || "").trim()) markDirty({ products:true });
+      });
+    }
   }
 
   function renderCategories(){
@@ -1002,7 +1000,6 @@ function markDirty(flags){
           <div class="field third"><label>ID (pl. elf)</label><input id="newCid" placeholder="elf"></div>
           <div class="field third"><label>HU</label><input id="newChu" placeholder="ELF"></div>
           <div class="field third"><label>Alap ár</label><input id="newCprice" type="number" min="0" value="0"></div>
-          <div class="field third"><label>Titkos</label><label class="chk" style="justify-content:flex-start;"><input id="newCsecret" type="checkbox"> Jelszóval jelenjen meg</label></div>
         </div>
       `;
       openModal("Új kategória", "Nem prompt, rendes modal 😄", body, [
@@ -1022,7 +1019,7 @@ function markDirty(flags){
             basePrice: bp,
             visible: true,
             featuredEnabled: true,
-            secret: !!$("#newCsecret").checked
+            secret: false
           });
           closeModal();
           renderAll();
@@ -1039,8 +1036,8 @@ function markDirty(flags){
         if(!c) return;
         if(k === "basePrice") c.basePrice = Math.max(0, Number(inp.value||0));
         else if(k === "visible") c.visible = !!inp.checked;
-        else if(k === "featuredEnabled") c.featuredEnabled = !!inp.checked;
         else if(k === "secret") c.secret = !!inp.checked;
+        else if(k === "featuredEnabled") c.featuredEnabled = !!inp.checked;
         else c[k] = inp.value;
         markDirty({ products:true });
       };
@@ -1140,7 +1137,6 @@ function renderProducts(){
                   Kategória: <b>${escapeHtml(c ? (c.label_hu||c.id) : "—")}</b>
                   • Ár: <b>${eff.toLocaleString("hu-HU")} Ft</b>
                   • Készlet: <b>${p.status==="soon" ? "—" : p.stock}</b>
-                  • Titkos: <b>${productIsSecret(p) ? "igen" : "nem"}</b>
                   ${p.status==="soon" && p.soonEta ? `• Várható: <b>${escapeHtml(p.soonEta)}</b>` : ""}
                 </div>
               </div>
@@ -1271,7 +1267,7 @@ function renderProducts(){
         <div class="field third"><label>Várható hónap (csak "soon")</label><input id="p_eta" type="month" value="${escapeHtml(p.soonEta||"")}" placeholder="YYYY-MM"></div>
 
         <div class="field third"><label>Látható</label><label class="chk" style="justify-content:flex-start;"><input type="checkbox" id="p_visible" ${p.visible===false?"":"checked"}> Public oldalon</label></div>
-        <div class="field third"><label>Titkos</label><label class="chk" style="justify-content:flex-start;"><input type="checkbox" id="p_secret" ${p.secret===true?"checked":""}> Csak jelszóval látszódjon</label></div>
+        <div class="field third"><label>Titkos</label><label class="chk" style="justify-content:flex-start;"><input type="checkbox" id="p_secret" ${p.secret===true?"checked":""}> Csak jelszóval</label></div>
 
         <div class="field third"><label>Készlet</label><input id="p_stock" type="number" min="0" value="${p.stock}"></div>
         <div class="field third"><label>Ár (Ft) — üres: kategória ár</label><input id="p_price" type="number" min="0" value="${p.price===null?"":p.price}"></div>

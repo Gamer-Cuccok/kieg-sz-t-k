@@ -27,8 +27,13 @@
     reservationsFresh: false,
     reserveApi: "",
     favorites: new Set(),
-    secretAccessHash: "",
+    secretUnlocked: false,
+    secretExpiresAt: 0,
+    secretExpiryTimer: null,
+    searchSeq: 0,
   };
+
+  const SECRET_SESSION_LS_KEY = "sv_secret_session_v1";
 
   const isAdminMode = (()=>{
     try{ return new URLSearchParams(location.search).get("sv_admin") === "1"; }catch{ return false; }
@@ -48,8 +53,7 @@
     expected: { hu: "Várható", en: "Expected" },
     favorites: { hu: "Kedvencek", en: "Favorites" },
     addFav: { hu: "Kedvenc", en: "Favorite" },
-    removeFav: { hu: "Kedvenc törlése", en: "Remove favorite" },
-    unknownError: { hu: "Ismeretlen hiba.", en: "Unknown error." }
+    removeFav: { hu: "Kedvenc törlése", en: "Remove favorite" }
   };
 
   const t = (k) => (UI[k] ? UI[k].hu : k);
@@ -65,13 +69,6 @@
 
   function naturalCompare(a, b){
     return String(a ?? "").localeCompare(String(b ?? ""), locale(), { numeric: true, sensitivity: "base" });
-  }
-
-  function secretHash(value){
-    const s = String(value ?? "").trim();
-    let h = 5381;
-    for(let i=0;i<s.length;i++) h = ((h << 5) + h) ^ s.charCodeAt(i);
-    return (h >>> 0).toString(16);
   }
 
   function loadFavorites(){
@@ -94,8 +91,8 @@
     const pid = String(productId || "");
     if(!pid) return;
     const p = (state.productsDoc.products || []).find(x => String(x?.id || "") === pid);
-    if(!canUseReservationActions(p)){
-      showToast(t("unknownError"));
+    if(!canInteractProduct(p)){
+      showToast("Ismeretlen hiba.");
       return;
     }
     const wasFav = state.favorites.has(pid);
@@ -106,6 +103,7 @@
     renderGrid();
 
     if(!wasFav){
+      const p = (state.productsDoc.products || []).find(x => String(x?.id || "") === pid);
       if(p){
         const nm = getName(p);
         const fl = getFlavor(p);
@@ -129,6 +127,196 @@
 
   const CART_LS_KEY = "sv_cart_v1";
   const FAVORITES_LS_KEY = "sv_favorites_v1";
+
+  function sha256Hex(text){
+    const str = String(text ?? "");
+    if(!(globalThis.crypto && crypto.subtle && globalThis.TextEncoder)){
+      return Promise.resolve(norm(str));
+    }
+    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(str)).then((buf) => {
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+    }).catch(() => norm(str));
+  }
+
+  function getSecretCfg(){
+    const meta = state.productsDoc && state.productsDoc._meta && typeof state.productsDoc._meta === "object"
+      ? state.productsDoc._meta
+      : {};
+    const raw = meta.secretAccess && typeof meta.secretAccess === "object" ? meta.secretAccess : {};
+    const durationMs = Math.max(60_000, Number(raw.durationMs || 3_600_000) || 3_600_000);
+    return {
+      passwordHash: String(raw.passwordHash || "").trim().toLowerCase(),
+      durationMs
+    };
+  }
+
+  function categoryById(categoryId){
+    return (state.productsDoc.categories || []).find(c => String(c && c.id || "") === String(categoryId || "")) || null;
+  }
+
+  function isSecretCategory(category){
+    return !!(category && category.secret === true);
+  }
+
+  function isSecretProduct(product){
+    if(!product) return false;
+    if(product.secret === true) return true;
+    return isSecretCategory(categoryById(product.categoryId));
+  }
+
+  function isSecretModeActive(){
+    if(isAdminMode) return true;
+    return !!state.secretUnlocked && Number(state.secretExpiresAt || 0) > Date.now();
+  }
+
+  function canSeeProduct(product){
+    if(isAdminMode) return true;
+    return isSecretModeActive() ? isSecretProduct(product) : !isSecretProduct(product);
+  }
+
+  function canInteractProduct(product){
+    if(isAdminMode) return true;
+    return isSecretModeActive() && isSecretProduct(product);
+  }
+
+  function getRenderableCartEntries(){
+    const products = new Map((state.productsDoc.products || []).filter(p => p && p.id).map(p => [String(p.id), p]));
+    const out = [];
+    for(const [pid, qty0] of state.cart.entries()){
+      const p = products.get(String(pid));
+      if(!p) continue;
+      if(!canInteractProduct(p)) continue;
+      const qty = Math.max(0, Number(qty0 || 0) || 0);
+      if(!qty) continue;
+      out.push([String(pid), qty, p]);
+    }
+    return out;
+  }
+
+  function cartQtyVisible(productId){
+    const pid = String(productId || "");
+    let qty = 0;
+    for(const [id, q] of getRenderableCartEntries()){
+      if(id === pid) qty += Number(q || 0);
+    }
+    return qty;
+  }
+
+  function clearSecretExpiryTimer(){
+    try{
+      if(state.secretExpiryTimer) clearTimeout(state.secretExpiryTimer);
+    }catch{}
+    state.secretExpiryTimer = null;
+  }
+
+  function persistSecretSession(expiresAt){
+    const cfg = getSecretCfg();
+    try{
+      localStorage.setItem(SECRET_SESSION_LS_KEY, JSON.stringify({
+        expiresAt: Number(expiresAt || 0) || 0,
+        passwordHash: cfg.passwordHash || ""
+      }));
+    }catch{}
+  }
+
+  function normalizeActiveView(){
+    const ids = new Set(orderedCategories().map(c => String(c.id)));
+    if(!ids.has(String(state.active || ""))){
+      state.active = "all";
+    }
+  }
+
+  function deactivateSecretMode({ rerender=true } = {}){
+    const had = state.secretUnlocked || state.secretExpiresAt;
+    clearSecretExpiryTimer();
+    state.secretUnlocked = false;
+    state.secretExpiresAt = 0;
+    state.search = "";
+    try{
+      localStorage.removeItem(SECRET_SESSION_LS_KEY);
+    }catch{}
+    const searchEl = $("#search");
+    if(searchEl) searchEl.value = "";
+    if(had && rerender){
+      normalizeActiveView();
+      renderNav();
+      renderGrid();
+      updateCartBadge();
+      if(state.cartOpen) renderCart();
+    }
+  }
+
+  function scheduleSecretExpiry(){
+    clearSecretExpiryTimer();
+    if(isAdminMode) return;
+    const ms = Number(state.secretExpiresAt || 0) - Date.now();
+    if(ms <= 0){
+      deactivateSecretMode({ rerender:true });
+      return;
+    }
+    state.secretExpiryTimer = setTimeout(() => {
+      deactivateSecretMode({ rerender:true });
+    }, ms + 20);
+  }
+
+  function activateSecretMode(durationMs){
+    if(isAdminMode) return;
+    const ttl = Math.max(60_000, Number(durationMs || getSecretCfg().durationMs || 3_600_000) || 3_600_000);
+    state.secretUnlocked = true;
+    state.secretExpiresAt = Date.now() + ttl;
+    persistSecretSession(state.secretExpiresAt);
+    scheduleSecretExpiry();
+    state.search = "";
+    const searchEl = $("#search");
+    if(searchEl) searchEl.value = "";
+    normalizeActiveView();
+    renderNav();
+    renderGrid();
+    updateCartBadge();
+    if(state.cartOpen) renderCart();
+  }
+
+  function syncSecretSessionWithDoc({ rerender=false } = {}){
+    if(isAdminMode) return;
+    const cfg = getSecretCfg();
+    if(!cfg.passwordHash){
+      deactivateSecretMode({ rerender });
+      return;
+    }
+    let raw = null;
+    try{
+      raw = JSON.parse(localStorage.getItem(SECRET_SESSION_LS_KEY) || "null");
+    }catch{
+      raw = null;
+    }
+    const expiresAt = Number(raw && raw.expiresAt || 0) || 0;
+    const passwordHash = String(raw && raw.passwordHash || "").trim().toLowerCase();
+    if(expiresAt > Date.now() && passwordHash && passwordHash === cfg.passwordHash){
+      state.secretUnlocked = true;
+      state.secretExpiresAt = expiresAt;
+      scheduleSecretExpiry();
+      if(rerender){
+        normalizeActiveView();
+        renderNav();
+        renderGrid();
+        updateCartBadge();
+        if(state.cartOpen) renderCart();
+      }
+      return;
+    }
+    deactivateSecretMode({ rerender });
+  }
+
+  async function tryUnlockFromSearchValue(rawValue){
+    if(isAdminMode) return false;
+    const cfg = getSecretCfg();
+    const candidate = String(rawValue || "").trim();
+    if(!candidate || !cfg.passwordHash) return false;
+    const hash = await sha256Hex(candidate);
+    if(String(hash || "").trim().toLowerCase() !== cfg.passwordHash) return false;
+    activateSecretMode(cfg.durationMs);
+    return true;
+  }
 
   function loadCart(){
     try{
@@ -157,38 +345,12 @@
 
   function cartCount(){
     let n = 0;
-    for(const v of state.cart.values()) n += Number(v || 0);
+    for(const [, qty] of getRenderableCartEntries()) n += Number(qty || 0);
     return n;
   }
 
   function reservedQty(productId){
     return Number(state.reservedByProduct.get(String(productId)) || 0);
-  }
-
-  function sanitizeFavorites(){
-    let changed = false;
-    for(const pid of [...state.favorites]){
-      const p = (state.productsDoc.products || []).find(x => String(x?.id || "") === String(pid));
-      if(!canUseReservationActions(p)){
-        state.favorites.delete(pid);
-        changed = true;
-      }
-    }
-    if(changed) saveFavorites();
-    return changed;
-  }
-
-  function sanitizeCart(){
-    let changed = false;
-    for(const [pid] of [...state.cart.entries()]){
-      const p = (state.productsDoc.products || []).find(x => String(x?.id || "") === String(pid));
-      if(!canUseReservationActions(p)){
-        state.cart.delete(pid);
-        changed = true;
-      }
-    }
-    if(changed) saveCart();
-    return changed;
   }
 
   function ensureCartUI(){
@@ -309,12 +471,12 @@
   function addToCart(p){
     try{
       if(!p) return;
-      if(!canUseReservationActions(p)){
-        showToast(t("unknownError"));
-        return;
-      }
       const pid = String(p.id || "");
       if(!pid) return;
+      if(!canInteractProduct(p)){
+        showToast("Ismeretlen hiba.");
+        return;
+      }
       if(isOut(p) || isSoon(p)) return;
 
       const baseStock = Math.max(0, Number(p.stock || 0));
@@ -384,12 +546,12 @@
     const totalsEl = document.querySelector("#svCartTotals");
     if(!wrap || !empty) return;
 
-    const products = (state.productsDoc.products || []).filter(p => p && p.id && canUseReservationActions(p));
+    const products = (state.productsDoc.products || []).filter(p => p && p.id);
+    const productMap = new Map(products.map(p => [String(p.id), p]));
     const rows = [];
     let totalSum = 0;
 
-    for(const [pid, qty0] of state.cart.entries()){
-      const p = products.find(x => String(x.id) === String(pid));
+    for(const [pid, qty0, p] of getRenderableCartEntries()){
       if(!p) continue;
       const qty = Math.max(1, Number(qty0||0)||0);
 
@@ -441,7 +603,7 @@
       b.addEventListener("click", (e)=>{
         e.preventDefault(); e.stopPropagation();
         const pid = b.dataset.plus;
-        const p = products.find(x => String(x.id) === String(pid));
+        const p = productMap.get(String(pid));
         if(!p) return;
         addToCart(p);
       });
@@ -452,7 +614,7 @@
         e.preventDefault(); e.stopPropagation();
         const pid = b.dataset.minus;
         const cur = cartQty(pid);
-        const p = products.find(x => String(x.id) === String(pid));
+        const p = productMap.get(String(pid));
         const nm = p ? getName(p) : "Termék";
         const fl = p ? getFlavor(p) : "";
         const label = `${nm}${fl ? ", " + fl : ""}`;
@@ -469,7 +631,7 @@
   /* ----------------- Cart actions ----------------- */
   function adminSaleFromCart(){
     try{
-      const items = [...state.cart.entries()].map(([productId, qty]) => ({ productId: String(productId), qty: Number(qty||0) })).filter(it => it.productId && it.qty > 0);
+      const items = getRenderableCartEntries().map(([productId, qty]) => ({ productId: String(productId), qty: Number(qty||0) })).filter(it => it.productId && it.qty > 0);
       if(!items.length) return;
       // Parent admin page will open the real sale modal + save/rollback logic.
       if(window.parent && window.parent !== window){
@@ -486,11 +648,12 @@
     const panel = document.querySelector("#svCartOverlay .cart-panel");
     if(!panel) return;
 
-    const products = (state.productsDoc.products || []).filter(p => p && p.id && canUseReservationActions(p));
+    const products = (state.productsDoc.products || []).filter(p => p && p.id);
+    const productMap = new Map(products.map(p => [String(p.id), p]));
 
-    const items = [...state.cart.entries()].map(([pid, qty0]) => {
-      const p = products.find(x => String(x.id) === String(pid));
-      if(!p) return null;
+    const items = getRenderableCartEntries().map(([pid, qty0]) => {
+      const p = productMap.get(String(pid));
+      if(!p || !canInteractProduct(p)) return null;
       const qty = Math.max(1, Number(qty0||0)||0);
       const unit = Number(effectivePrice(p) || 0);
       return {
@@ -916,7 +1079,7 @@
   function effectivePrice(p) {
     const price = p && p.price;
     if (price !== null && price !== undefined && price !== "" && Number(price) > 0) return Number(price);
-    const c = categoryById(p.categoryId);
+    const c = (state.productsDoc.categories || []).find((x) => String(x.id) === String(p.categoryId));
     const bp = c ? Number(c.basePrice || 0) : 0;
     return Number.isFinite(bp) ? bp : 0;
   }
@@ -929,54 +1092,6 @@
 
   function isSoon(p) {
     return ((p && p.status) || "ok") === "soon";
-  }
-
-  function metaSecretHash(){
-    return String(state.productsDoc?._meta?.secretPasswordHash || "").trim();
-  }
-
-  function isSecretMode(){
-    const hash = metaSecretHash();
-    return !!(hash && state.secretAccessHash && state.secretAccessHash === hash);
-  }
-
-  function unlockSecretMode(password){
-    const hash = metaSecretHash();
-    if(!hash) return false;
-    if(secretHash(password) !== hash) return false;
-    state.secretAccessHash = hash;
-    return true;
-  }
-
-  function categoryById(categoryId){
-    return (state.productsDoc.categories || []).find((x) => String(x?.id || "") === String(categoryId || "")) || null;
-  }
-
-  function isSecretCategory(category){
-    return !!(category && (category.secret === true || category.encrypted === true || category.private === true));
-  }
-
-  function isSecretProduct(p){
-    if(!p) return false;
-    if(p.secret === true || p.encrypted === true || p.private === true) return true;
-    return isSecretCategory(categoryById(p.categoryId));
-  }
-
-  function isProductVisibleOnCurrentMode(p){
-    if(!p || p.visible === false) return false;
-    const c = categoryById(p.categoryId);
-    if(c && c.visible === false) return false;
-    return isSecretMode() ? isSecretProduct(p) : !isSecretProduct(p);
-  }
-
-  function canUseReservationActions(p){
-    if(!p) return false;
-    return isSecretProduct(p);
-  }
-
-  function ensureActiveCategoryIsValid(){
-    const valid = new Set(orderedCategories().map(c => String(c.id || "")));
-    if(!valid.has(String(state.active || ""))) state.active = "all";
   }
 
   /* ----------------- Source resolving (RAW preferált, custom domainen is) ----------------- */
@@ -1140,14 +1255,8 @@
 
   function normalizeDoc(data) {
     if (Array.isArray(data)) return { categories: [], products: data, popups: [], _meta: null };
-    const categories = data && Array.isArray(data.categories) ? data.categories.map(c => ({
-      ...c,
-      secret: (c?.secret === true || c?.encrypted === true || c?.private === true)
-    })) : [];
-    const products = data && Array.isArray(data.products) ? data.products.map(p => ({
-      ...p,
-      secret: (p?.secret === true || p?.encrypted === true || p?.private === true)
-    })) : [];
+    const categories = data && Array.isArray(data.categories) ? data.categories : [];
+    const products = data && Array.isArray(data.products) ? data.products : [];
     const popups = data && Array.isArray(data.popups) ? data.popups : [];
     const _meta = data && typeof data === "object" ? (data._meta || null) : null;
     return { categories, products, popups, _meta };
@@ -1360,6 +1469,7 @@
     state.docHash = nextSig;
     if(nextRev) state.docRev = nextRev;
     if(source === "live") state.lastLiveTs = now;
+    syncSecretSessionWithDoc({ rerender:false });
     return true;
   }
 
@@ -1379,8 +1489,6 @@
 
   /* ----------------- Rendering ----------------- */
   function orderedCategories() {
-    const modeProducts = (state.productsDoc.products || []).filter(p => p && p.id && isProductVisibleOnCurrentMode(p));
-    const catIds = new Set(modeProducts.map(p => String(p.categoryId || "")).filter(Boolean));
     const cats = (state.productsDoc.categories || [])
       .filter((c) => c && c.id)
       .map((c) => ({
@@ -1390,29 +1498,50 @@
         basePrice: Number(c.basePrice || 0),
         featuredEnabled: (c.featuredEnabled === false) ? false : true,
         visible: (c.visible === false) ? false : true,
-        secret: (c.secret === true || c.encrypted === true || c.private === true)
+        secret: c.secret === true
       }))
-      .filter(c => isAdminMode || (c.visible !== false && catIds.has(String(c.id))))
+      .filter(c => isAdminMode || c.visible !== false);
+
+    const modeCats = new Set();
+    if(isAdminMode){
+      for(const c of cats) modeCats.add(String(c.id));
+    }else{
+      for(const c of cats){
+        const cid = String(c.id);
+        const hasPublic = (state.productsDoc.products || []).some(p => p && String(p.categoryId || "") === cid && p.visible !== false && !isSecretProduct(p));
+        const hasSecret = (state.productsDoc.products || []).some(p => p && String(p.categoryId || "") === cid && p.visible !== false && isSecretProduct(p));
+        if(isSecretModeActive()){
+          if(c.secret || hasSecret) modeCats.add(cid);
+        }else{
+          if(!c.secret || hasPublic) modeCats.add(cid);
+        }
+      }
+    }
+
+    const visibleCats = cats
+      .filter(c => modeCats.has(String(c.id)))
       .sort((a, b) => naturalCompare(catLabel(a), catLabel(b)));
 
-    const modeFavorites = [...state.favorites].filter(pid => {
-      const p = (state.productsDoc.products || []).find(x => String(x?.id || "") === String(pid));
-      return !!p && isProductVisibleOnCurrentMode(p);
-    });
+    const visibleFavoriteCount = (state.productsDoc.products || []).filter(p => p && p.id && p.visible !== false && canInteractProduct(p) && isFavorite(p.id)).length;
 
     const out = [
       { id: "all", label_hu: t("all"), label_en: t("all"), virtual: true },
     ];
-    if(modeFavorites.length || state.active === "favorites"){
+    if(visibleFavoriteCount || state.active === "favorites"){
       out.push({ id: "favorites", label_hu: t("favorites"), label_en: t("favorites"), virtual: true });
     }
-    out.push(...cats);
+    out.push(...visibleCats);
     out.push({ id: "soon", label_hu: t("soon"), label_en: t("soon"), virtual: true });
     return out;
   }
 
   function filterList() {
     const q = norm(state.search);
+
+    const catVisible = new Map();
+    for(const c of (state.productsDoc.categories || [])){
+      if(c && c.id) catVisible.set(String(c.id), (c.visible === false) ? false : true);
+    }
 
     let list = (state.productsDoc.products || []).map((p) => ({
       ...p,
@@ -1421,13 +1550,18 @@
       status: p.status === "soon" || p.status === "out" || p.status === "ok" ? p.status : "ok",
       stock: Math.max(0, Number(p.stock || 0)),
       visible: (p.visible === false) ? false : true,
-      secret: (p.secret === true || p.encrypted === true || p.private === true)
-    })).filter(p => p.id && isProductVisibleOnCurrentMode(p));
+      secret: p.secret === true
+    })).filter(p => p.id && p.visible !== false);
+
+    if(!isAdminMode){
+      list = list.filter(p => canSeeProduct(p));
+      list = list.filter(p => p.status === "soon" || (catVisible.get(String(p.categoryId)) !== false));
+    }
 
     if (state.active === "soon") {
       list = list.filter((p) => p.status === "soon");
     } else if (state.active === "favorites") {
-      list = list.filter((p) => isFavorite(p.id));
+      list = list.filter((p) => canInteractProduct(p) && isFavorite(p.id));
     } else {
       if (state.active !== "all") list = list.filter((p) => String(p.categoryId) === String(state.active));
     }
@@ -1469,7 +1603,7 @@
     const nav = $("#nav");
     nav.innerHTML = "";
 
-    ensureActiveCategoryIsValid();
+    normalizeActiveView();
     const cats = orderedCategories();
     for (const c of cats) {
       const btn = document.createElement("button");
@@ -1486,14 +1620,14 @@
   }
 
   function getFeaturedListForAll(){
-    const cats = (state.productsDoc.categories || []).filter(c => c && c.id && (c.featuredEnabled === false ? false : true) && c.visible !== false);
+    const cats = (state.productsDoc.categories || []).filter(c => c && c.id && (c.featuredEnabled === false ? false : true) && (isAdminMode || c.visible !== false));
     cats.sort((a,b)=>naturalCompare(catLabel(a), catLabel(b)));
     const out = [];
     for(const c of cats){
       const pid = state.featuredByCat.get(String(c.id));
       if(!pid) continue;
       const p = (state.productsDoc.products||[]).find(x=>String(x.id)===String(pid));
-      if(p && isProductVisibleOnCurrentMode(p)) out.push(p);
+      if(p && p.visible !== false && canSeeProduct(p)) out.push(p);
     }
     return out;
   }
@@ -1516,7 +1650,7 @@
         const pid = state.featuredByCat.get(String(state.active));
         if(pid){
           const p = (state.productsDoc.products||[]).find(x=>String(x.id)===String(pid));
-          if(p && isProductVisibleOnCurrentMode(p)) featuredToPrepend = [p];
+          if(p && p.visible !== false && canSeeProduct(p)) featuredToPrepend = [p];
         }
       }
     }
@@ -1573,9 +1707,10 @@
 
       const favBtn = document.createElement("button");
       favBtn.type = "button";
-      favBtn.className = `fav-btn${isFavorite(p.id) ? " is-active" : ""}`;
-      favBtn.setAttribute("aria-label", isFavorite(p.id) ? t("removeFav") : t("addFav"));
-      favBtn.setAttribute("title", isFavorite(p.id) ? t("removeFav") : t("addFav"));
+      const favActive = canInteractProduct(p) && isFavorite(p.id);
+      favBtn.className = `fav-btn${favActive ? " is-active" : ""}`;
+      favBtn.setAttribute("aria-label", favActive ? t("removeFav") : t("addFav"));
+      favBtn.setAttribute("title", favActive ? t("removeFav") : t("addFav"));
       favBtn.innerHTML = "❤";
       favBtn.addEventListener("click", (e)=>{
         e.preventDefault();
@@ -1627,7 +1762,6 @@
       const body = document.createElement("div");
       body.className = "card-body";
 
-      const reservable = canUseReservationActions(p);
       const reserved = soon ? 0 : reservedQty(String(p.id));
       const available = soon ? 0 : Math.max(0, Math.max(0, Number(p.stock || 0)) - reserved);
 
@@ -1658,7 +1792,7 @@
       addBtn.type = "button";
       addBtn.className = "add-cart-btn";
       addBtn.textContent = "Kosárba teszem";
-      addBtn.disabled = reservable ? (out || soon || available <= cartQty(String(p.id))) : false;
+      addBtn.disabled = out || soon || available <= cartQtyVisible(String(p.id));
       addBtn.addEventListener("click", (e)=>{
         e.preventDefault();
         e.stopPropagation();
@@ -1687,7 +1821,7 @@
     // sort: newest first (admin list is newest first)
     popups.sort((a,b)=>(Number(b.createdAt||0)-Number(a.createdAt||0)));
 
-    const products = (state.productsDoc.products || []).filter(p=>p && p.id && isProductVisibleOnCurrentMode(p));
+    const products = (state.productsDoc.products || []).filter(p=>p && p.id && p.visible !== false && canSeeProduct(p));
     const cats = (state.productsDoc.categories || []);
 
     const queue = [];
@@ -2051,17 +2185,14 @@
     const input = $("#search");
     if(!input) return;
 
-    const applySearch = () => {
-      const raw = String(input.value || "");
-      if(unlockSecretMode(raw)){
+    const applySearch = async () => {
+      const seq = ++state.searchSeq;
+      const raw = input.value || "";
+      const unlocked = await tryUnlockFromSearchValue(raw);
+      if(seq !== state.searchSeq) return;
+      if(unlocked){
         state.search = "";
         input.value = "";
-        state.active = "all";
-        sanitizeFavorites();
-        sanitizeCart();
-        renderNav();
-        renderGrid();
-        updateCartBadge();
         return;
       }
       state.search = raw;
@@ -2157,13 +2288,6 @@
       computeFeaturedByCategory();
     }
 
-    if(sanitizeFavorites() || sanitizeCart()) changed = true;
-
-    if(state.secretAccessHash && state.secretAccessHash !== metaSecretHash()){
-      state.secretAccessHash = "";
-      changed = true;
-    }
-
     return changed;
   }
 
@@ -2182,6 +2306,7 @@
 
     // load from network (RAW) to be sure
     await loadAll({ forceBust:true });
+    syncSecretSessionWithDoc({ rerender:false });
 
     renderNav();
     renderGrid();
