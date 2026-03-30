@@ -21,8 +21,8 @@
     "createdAt": 1774875612968,
     "expiresAt": null,
     "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
+    "modified": true,
+    "modifiedAt": 1774898975996,
     "items": [
       {
         "productId": "p_d1c0df1b50542_19c7aee39b0",
