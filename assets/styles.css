@@ -347,6 +347,39 @@ button, input, select{
 }
 #modalBody{ overflow:auto; max-height: 62vh; padding-right: 4px; }
 #modalActions{ flex:0 0 auto; }
+.modal-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom: 12px;
+}
+.modal-head-copy{
+  min-width:0;
+  flex:1 1 auto;
+}
+.modal-head-copy p{ margin-bottom:0; }
+.modal-x{
+  flex:0 0 auto;
+  width:42px;
+  height:42px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(11,15,23,.42);
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 900;
+  cursor:pointer;
+  transition: background .12s ease, border-color .12s ease, transform .12s ease;
+}
+.modal-x:hover{
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.22);
+}
+.modal-x:active{ transform: translateY(1px); }
 .modal h2{ margin:0 0 6px; }
 .modal p{ margin:0 0 14px; color: var(--muted); }
 .modal .row{ display:flex; gap:10px; flex-wrap:wrap; }
@@ -745,6 +778,14 @@ button, input, select{
 
 /* ================== CART + META LAYOUT (blue theme) ================== */
 .topbar-right{ display:flex; align-items:center; gap:10px; }
+
+#svCartBtn{
+  position: fixed;
+  top: max(12px, calc(env(safe-area-inset-top, 0px) + 12px));
+  right: max(12px, calc(env(safe-area-inset-right, 0px) + 12px));
+  z-index: 320;
+  box-shadow: 0 12px 30px rgba(0,0,0,.28);
+}
 
 .cart-btn{
   display:flex; align-items:center; gap:10px;
@@ -1228,14 +1269,12 @@ button, input, select{
 }
 .fav-btn:active{ transform: translateY(1px); }
 
+@media (min-width: 861px){
+  .main{ padding-top: 82px; }
+}
+
+
 @media (max-width: 860px){
-  #svCartBtn{
-    position: fixed;
-    top: 12px;
-    right: 12px;
-    z-index: 120;
-    box-shadow: 0 12px 30px rgba(0,0,0,.28);
-  }
   .topbar-right{ position: static; }
-  .main{ padding-top: 72px; }
+  .main{ padding-top: max(72px, calc(env(safe-area-inset-top, 0px) + 72px)); }
 }

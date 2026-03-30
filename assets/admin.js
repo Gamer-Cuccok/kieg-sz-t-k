@@ -1261,11 +1261,21 @@ function renderProducts(){
     const cats = [{id:"all", label:"Mind"}, ...state.doc.categories.map(c=>({id:c.id,label:c.label_hu||c.id}))];
 
     const filterCat = state.filters.salesCat;
-    const q = (state.filters.salesSearch || "").toLowerCase();
+    const q = (state.filters.salesSearch || "").toLowerCase().trim();
 
     let list = [...state.sales].sort((a,b)=> String(b.date).localeCompare(String(a.date)));
     if(q){
-      list = list.filter(s => (`${s.name} ${s.payment}`).toLowerCase().includes(q));
+      list = list.filter(s => {
+        const productText = (Array.isArray(s.items) ? s.items : []).map(it => {
+          const p = prodById(it.productId);
+          return [
+            it.productId,
+            p?.name_hu || p?.name_en || "",
+            p?.flavor_hu || p?.flavor_en || ""
+          ].join(" ");
+        }).join(" ");
+        return (`${s.id || ""} ${s.date || ""} ${s.name || ""} ${s.payment || ""} ${productText}`).toLowerCase().includes(q);
+      });
     }
     if(filterCat !== "all"){
       list = list.filter(s => saleTotals(s, filterCat).hit);
@@ -1303,7 +1313,7 @@ function renderProducts(){
         <select id="salesCat">
           ${cats.map(c => `<option value="${escapeHtml(c.id)}"${c.id===filterCat?" selected":""}>${escapeHtml(c.label)}</option>`).join("")}
         </select>
-        <input id="salesSearch" placeholder="Keresés név / mód szerint..." value="${escapeHtml(state.filters.salesSearch)}" style="flex:1;min-width:220px;">
+        <input id="salesSearch" placeholder="Keresés név / mód / termék / íz szerint..." value="${escapeHtml(state.filters.salesSearch)}" style="flex:1;min-width:220px;">
         <div class="small-muted">Szűrés kategóriára: csak az adott kategória tételeit számolja.</div>
       </div>
       <div style="margin-top:10px;">${rows || `<div class="small-muted">Nincs eladás.</div>`}</div>
@@ -2546,7 +2556,18 @@ function deleteSale(id){
   function init(){
     renderTabs();
     $("#btnReload").onclick = () => location.reload();
-    // Háttérre kattintásra ne záródjon, csak X-szel vagy a modál saját gombjaival.
+
+    const modalBg = $("#modalBg");
+    const modalCloseBtn = $("#modalCloseBtn");
+    if(modalCloseBtn) modalCloseBtn.onclick = closeModal;
+    if(modalBg){
+      modalBg.addEventListener("click", (e)=>{
+        if(e.target === modalBg) return;
+      });
+    }
+    window.addEventListener("keydown", (e)=>{
+      if(e.key === "Escape" && modalBg && modalBg.style.display === "flex") closeModal();
+    });
 
     // first render panels + inject settings inputs ids
     renderSettings();

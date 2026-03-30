@@ -84,11 +84,23 @@
   function toggleFavorite(productId){
     const pid = String(productId || "");
     if(!pid) return;
-    if(state.favorites.has(pid)) state.favorites.delete(pid);
+    const wasFav = state.favorites.has(pid);
+    if(wasFav) state.favorites.delete(pid);
     else state.favorites.add(pid);
     saveFavorites();
     renderNav();
     renderGrid();
+
+    if(!wasFav){
+      const p = (state.productsDoc.products || []).find(x => String(x?.id || "") === pid);
+      if(p){
+        const nm = getName(p);
+        const fl = getFlavor(p);
+        showToast(`${nm}${fl ? " • " + fl : ""} hozzáadva a kedvencek közé`);
+      }else{
+        showToast(`Hozzáadva a kedvencek közé`);
+      }
+    }
   }
 
 
@@ -167,7 +179,7 @@
         toggleCart(true);
       });
 
-      right.appendChild(btn);
+      document.body.appendChild(btn);
     }
 
     // toast (fixed, no layout shift)
@@ -1940,9 +1952,24 @@
   function initSearch(){
     const input = $("#search");
     if(!input) return;
-    input.addEventListener("input", () => {
+
+    const applySearch = () => {
       state.search = input.value || "";
       renderGrid();
+    };
+
+    try{
+      input.setAttribute("autocomplete", "off");
+      input.setAttribute("autocapitalize", "none");
+      input.spellcheck = false;
+    }catch{}
+
+    input.addEventListener("input", applySearch);
+    input.addEventListener("search", applySearch);
+    input.addEventListener("change", applySearch);
+    input.addEventListener("compositionend", applySearch);
+    input.addEventListener("keyup", (e)=>{
+      if(e.key === "Enter" || e.key === "Escape") applySearch();
     });
   }
 
