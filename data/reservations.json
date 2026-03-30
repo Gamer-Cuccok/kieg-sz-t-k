@@ -1,31 +1,5 @@
 [
   {
-    "id": "r_mnd1main_7wx2zc",
-    "publicCode": "628",
-    "createdAt": 1774866383807,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": true,
-    "modifiedAt": 1774873093828,
-    "items": [
-      {
-        "productId": "p_0b0caf39ccc8_19c7b06f9d2",
-        "qty": 1,
-        "unitPrice": 5000
-      },
-      {
-        "productId": "p_f93b7eb924ed1_19b4e156422",
-        "qty": 1,
-        "unitPrice": 5000
-      },
-      {
-        "productId": "p_96e473e02863_19b6a6106ac",
-        "qty": 1,
-        "unitPrice": 5000
-      }
-    ]
-  },
-  {
     "id": "r_mnd3mg0a_guswj6",
     "publicCode": "317",
     "createdAt": 1774869750154,
