@@ -27,6 +27,7 @@
     reservationsFresh: false,
     reserveApi: "",
     favorites: new Set(),
+    secretAccessHash: "",
   };
 
   const isAdminMode = (()=>{
@@ -47,7 +48,8 @@
     expected: { hu: "Várható", en: "Expected" },
     favorites: { hu: "Kedvencek", en: "Favorites" },
     addFav: { hu: "Kedvenc", en: "Favorite" },
-    removeFav: { hu: "Kedvenc törlése", en: "Remove favorite" }
+    removeFav: { hu: "Kedvenc törlése", en: "Remove favorite" },
+    unknownError: { hu: "Ismeretlen hiba.", en: "Unknown error." }
   };
 
   const t = (k) => (UI[k] ? UI[k].hu : k);
@@ -63,6 +65,13 @@
 
   function naturalCompare(a, b){
     return String(a ?? "").localeCompare(String(b ?? ""), locale(), { numeric: true, sensitivity: "base" });
+  }
+
+  function secretHash(value){
+    const s = String(value ?? "").trim();
+    let h = 5381;
+    for(let i=0;i<s.length;i++) h = ((h << 5) + h) ^ s.charCodeAt(i);
+    return (h >>> 0).toString(16);
   }
 
   function loadFavorites(){
@@ -84,6 +93,11 @@
   function toggleFavorite(productId){
     const pid = String(productId || "");
     if(!pid) return;
+    const p = (state.productsDoc.products || []).find(x => String(x?.id || "") === pid);
+    if(!canUseReservationActions(p)){
+      showToast(t("unknownError"));
+      return;
+    }
     const wasFav = state.favorites.has(pid);
     if(wasFav) state.favorites.delete(pid);
     else state.favorites.add(pid);
@@ -92,7 +106,6 @@
     renderGrid();
 
     if(!wasFav){
-      const p = (state.productsDoc.products || []).find(x => String(x?.id || "") === pid);
       if(p){
         const nm = getName(p);
         const fl = getFlavor(p);
@@ -150,6 +163,32 @@
 
   function reservedQty(productId){
     return Number(state.reservedByProduct.get(String(productId)) || 0);
+  }
+
+  function sanitizeFavorites(){
+    let changed = false;
+    for(const pid of [...state.favorites]){
+      const p = (state.productsDoc.products || []).find(x => String(x?.id || "") === String(pid));
+      if(!canUseReservationActions(p)){
+        state.favorites.delete(pid);
+        changed = true;
+      }
+    }
+    if(changed) saveFavorites();
+    return changed;
+  }
+
+  function sanitizeCart(){
+    let changed = false;
+    for(const [pid] of [...state.cart.entries()]){
+      const p = (state.productsDoc.products || []).find(x => String(x?.id || "") === String(pid));
+      if(!canUseReservationActions(p)){
+        state.cart.delete(pid);
+        changed = true;
+      }
+    }
+    if(changed) saveCart();
+    return changed;
   }
 
   function ensureCartUI(){
@@ -270,6 +309,10 @@
   function addToCart(p){
     try{
       if(!p) return;
+      if(!canUseReservationActions(p)){
+        showToast(t("unknownError"));
+        return;
+      }
       const pid = String(p.id || "");
       if(!pid) return;
       if(isOut(p) || isSoon(p)) return;
@@ -341,7 +384,7 @@
     const totalsEl = document.querySelector("#svCartTotals");
     if(!wrap || !empty) return;
 
-    const products = (state.productsDoc.products || []).filter(p => p && p.id && p.visible !== false);
+    const products = (state.productsDoc.products || []).filter(p => p && p.id && canUseReservationActions(p));
     const rows = [];
     let totalSum = 0;
 
@@ -443,7 +486,7 @@
     const panel = document.querySelector("#svCartOverlay .cart-panel");
     if(!panel) return;
 
-    const products = (state.productsDoc.products || []).filter(p => p && p.id && p.visible !== false);
+    const products = (state.productsDoc.products || []).filter(p => p && p.id && canUseReservationActions(p));
 
     const items = [...state.cart.entries()].map(([pid, qty0]) => {
       const p = products.find(x => String(x.id) === String(pid));
@@ -873,7 +916,7 @@
   function effectivePrice(p) {
     const price = p && p.price;
     if (price !== null && price !== undefined && price !== "" && Number(price) > 0) return Number(price);
-    const c = (state.productsDoc.categories || []).find((x) => String(x.id) === String(p.categoryId));
+    const c = categoryById(p.categoryId);
     const bp = c ? Number(c.basePrice || 0) : 0;
     return Number.isFinite(bp) ? bp : 0;
   }
@@ -886,6 +929,54 @@
 
   function isSoon(p) {
     return ((p && p.status) || "ok") === "soon";
+  }
+
+  function metaSecretHash(){
+    return String(state.productsDoc?._meta?.secretPasswordHash || "").trim();
+  }
+
+  function isSecretMode(){
+    const hash = metaSecretHash();
+    return !!(hash && state.secretAccessHash && state.secretAccessHash === hash);
+  }
+
+  function unlockSecretMode(password){
+    const hash = metaSecretHash();
+    if(!hash) return false;
+    if(secretHash(password) !== hash) return false;
+    state.secretAccessHash = hash;
+    return true;
+  }
+
+  function categoryById(categoryId){
+    return (state.productsDoc.categories || []).find((x) => String(x?.id || "") === String(categoryId || "")) || null;
+  }
+
+  function isSecretCategory(category){
+    return !!(category && (category.secret === true || category.encrypted === true || category.private === true));
+  }
+
+  function isSecretProduct(p){
+    if(!p) return false;
+    if(p.secret === true || p.encrypted === true || p.private === true) return true;
+    return isSecretCategory(categoryById(p.categoryId));
+  }
+
+  function isProductVisibleOnCurrentMode(p){
+    if(!p || p.visible === false) return false;
+    const c = categoryById(p.categoryId);
+    if(c && c.visible === false) return false;
+    return isSecretMode() ? isSecretProduct(p) : !isSecretProduct(p);
+  }
+
+  function canUseReservationActions(p){
+    if(!p) return false;
+    return isSecretProduct(p);
+  }
+
+  function ensureActiveCategoryIsValid(){
+    const valid = new Set(orderedCategories().map(c => String(c.id || "")));
+    if(!valid.has(String(state.active || ""))) state.active = "all";
   }
 
   /* ----------------- Source resolving (RAW preferált, custom domainen is) ----------------- */
@@ -1049,8 +1140,14 @@
 
   function normalizeDoc(data) {
     if (Array.isArray(data)) return { categories: [], products: data, popups: [], _meta: null };
-    const categories = data && Array.isArray(data.categories) ? data.categories : [];
-    const products = data && Array.isArray(data.products) ? data.products : [];
+    const categories = data && Array.isArray(data.categories) ? data.categories.map(c => ({
+      ...c,
+      secret: (c?.secret === true || c?.encrypted === true || c?.private === true)
+    })) : [];
+    const products = data && Array.isArray(data.products) ? data.products.map(p => ({
+      ...p,
+      secret: (p?.secret === true || p?.encrypted === true || p?.private === true)
+    })) : [];
     const popups = data && Array.isArray(data.popups) ? data.popups : [];
     const _meta = data && typeof data === "object" ? (data._meta || null) : null;
     return { categories, products, popups, _meta };
@@ -1282,6 +1379,8 @@
 
   /* ----------------- Rendering ----------------- */
   function orderedCategories() {
+    const modeProducts = (state.productsDoc.products || []).filter(p => p && p.id && isProductVisibleOnCurrentMode(p));
+    const catIds = new Set(modeProducts.map(p => String(p.categoryId || "")).filter(Boolean));
     const cats = (state.productsDoc.categories || [])
       .filter((c) => c && c.id)
       .map((c) => ({
@@ -1290,15 +1389,21 @@
         label_en: c.label_en || c.label_hu || c.id,
         basePrice: Number(c.basePrice || 0),
         featuredEnabled: (c.featuredEnabled === false) ? false : true,
-        visible: (c.visible === false) ? false : true
+        visible: (c.visible === false) ? false : true,
+        secret: (c.secret === true || c.encrypted === true || c.private === true)
       }))
-      .filter(c => isAdminMode || c.visible !== false)
+      .filter(c => isAdminMode || (c.visible !== false && catIds.has(String(c.id))))
       .sort((a, b) => naturalCompare(catLabel(a), catLabel(b)));
+
+    const modeFavorites = [...state.favorites].filter(pid => {
+      const p = (state.productsDoc.products || []).find(x => String(x?.id || "") === String(pid));
+      return !!p && isProductVisibleOnCurrentMode(p);
+    });
 
     const out = [
       { id: "all", label_hu: t("all"), label_en: t("all"), virtual: true },
     ];
-    if(state.favorites.size || state.active === "favorites"){
+    if(modeFavorites.length || state.active === "favorites"){
       out.push({ id: "favorites", label_hu: t("favorites"), label_en: t("favorites"), virtual: true });
     }
     out.push(...cats);
@@ -1309,23 +1414,15 @@
   function filterList() {
     const q = norm(state.search);
 
-    const catVisible = new Map();
-    for(const c of (state.productsDoc.categories || [])){
-      if(c && c.id) catVisible.set(String(c.id), (c.visible === false) ? false : true);
-    }
-
     let list = (state.productsDoc.products || []).map((p) => ({
       ...p,
       id: String(p.id || ""),
       categoryId: String(p.categoryId || ""),
       status: p.status === "soon" || p.status === "out" || p.status === "ok" ? p.status : "ok",
       stock: Math.max(0, Number(p.stock || 0)),
-      visible: (p.visible === false) ? false : true
-    })).filter(p => p.id && p.visible !== false);
-
-    if(!isAdminMode){
-      list = list.filter(p => p.status === "soon" || (catVisible.get(String(p.categoryId)) !== false));
-    }
+      visible: (p.visible === false) ? false : true,
+      secret: (p.secret === true || p.encrypted === true || p.private === true)
+    })).filter(p => p.id && isProductVisibleOnCurrentMode(p));
 
     if (state.active === "soon") {
       list = list.filter((p) => p.status === "soon");
@@ -1339,7 +1436,6 @@
       list = list.filter((p) => norm(getName(p) + " " + getFlavor(p)).includes(q));
     }
 
-    // ✅ order: ok ... then soon ... then out
     const okPart = list.filter((p) => !isOut(p) && !isSoon(p));
     const soonPart = list.filter((p) => !isOut(p) && isSoon(p));
     const outPart = list.filter((p) => isOut(p));
@@ -1373,6 +1469,7 @@
     const nav = $("#nav");
     nav.innerHTML = "";
 
+    ensureActiveCategoryIsValid();
     const cats = orderedCategories();
     for (const c of cats) {
       const btn = document.createElement("button");
@@ -1389,14 +1486,14 @@
   }
 
   function getFeaturedListForAll(){
-    const cats = (state.productsDoc.categories || []).filter(c => c && c.id && (c.featuredEnabled === false ? false : true));
+    const cats = (state.productsDoc.categories || []).filter(c => c && c.id && (c.featuredEnabled === false ? false : true) && c.visible !== false);
     cats.sort((a,b)=>naturalCompare(catLabel(a), catLabel(b)));
     const out = [];
     for(const c of cats){
       const pid = state.featuredByCat.get(String(c.id));
       if(!pid) continue;
       const p = (state.productsDoc.products||[]).find(x=>String(x.id)===String(pid));
-      if(p && p.visible !== false) out.push(p);
+      if(p && isProductVisibleOnCurrentMode(p)) out.push(p);
     }
     return out;
   }
@@ -1419,7 +1516,7 @@
         const pid = state.featuredByCat.get(String(state.active));
         if(pid){
           const p = (state.productsDoc.products||[]).find(x=>String(x.id)===String(pid));
-          if(p && p.visible !== false) featuredToPrepend = [p];
+          if(p && isProductVisibleOnCurrentMode(p)) featuredToPrepend = [p];
         }
       }
     }
@@ -1530,6 +1627,7 @@
       const body = document.createElement("div");
       body.className = "card-body";
 
+      const reservable = canUseReservationActions(p);
       const reserved = soon ? 0 : reservedQty(String(p.id));
       const available = soon ? 0 : Math.max(0, Math.max(0, Number(p.stock || 0)) - reserved);
 
@@ -1560,7 +1658,7 @@
       addBtn.type = "button";
       addBtn.className = "add-cart-btn";
       addBtn.textContent = "Kosárba teszem";
-      addBtn.disabled = out || soon || available <= cartQty(String(p.id));
+      addBtn.disabled = reservable ? (out || soon || available <= cartQty(String(p.id))) : false;
       addBtn.addEventListener("click", (e)=>{
         e.preventDefault();
         e.stopPropagation();
@@ -1589,7 +1687,7 @@
     // sort: newest first (admin list is newest first)
     popups.sort((a,b)=>(Number(b.createdAt||0)-Number(a.createdAt||0)));
 
-    const products = (state.productsDoc.products || []).filter(p=>p && p.id && p.visible !== false);
+    const products = (state.productsDoc.products || []).filter(p=>p && p.id && isProductVisibleOnCurrentMode(p));
     const cats = (state.productsDoc.categories || []);
 
     const queue = [];
@@ -1954,7 +2052,19 @@
     if(!input) return;
 
     const applySearch = () => {
-      state.search = input.value || "";
+      const raw = String(input.value || "");
+      if(unlockSecretMode(raw)){
+        state.search = "";
+        input.value = "";
+        state.active = "all";
+        sanitizeFavorites();
+        sanitizeCart();
+        renderNav();
+        renderGrid();
+        updateCartBadge();
+        return;
+      }
+      state.search = raw;
       renderGrid();
     };
 
@@ -2045,6 +2155,13 @@
     // featured depends on BOTH products+sales; csak ha változott valami (vagy ha salesFresh változott)
     if(changed || !state.salesFresh){
       computeFeaturedByCategory();
+    }
+
+    if(sanitizeFavorites() || sanitizeCart()) changed = true;
+
+    if(state.secretAccessHash && state.secretAccessHash !== metaSecretHash()){
+      state.secretAccessHash = "";
+      changed = true;
     }
 
     return changed;
