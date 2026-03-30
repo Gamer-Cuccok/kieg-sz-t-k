@@ -431,8 +431,8 @@
     {
       "id": "p_b862159bc3f608_19beb0c6380",
       "categoryId": "vapsolo80k",
-      "status": "ok",
-      "stock": 1,
+      "status": "out",
+      "stock": 0,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/tWJGc13/MIXED-BERRY-CHERRY-LEMON-STRAWBERRY-KIWI-STRAWBERRY-WATERMELON-BUBBLEGUM-NOBG.png",
@@ -628,7 +628,7 @@
       "id": "p_a52ce38bb9b78_19cae8202a0",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 3,
+      "stock": 2,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/rKmbm6KJ/12-BLUEBERRY-CURRANT-CHEESE-CAKE-BLACKBERRY-RED-RASPBERRY-LIME-PASSION-FRUIT.png",
@@ -670,7 +670,7 @@
       "id": "p_4895703c991ba8_19cae9ce8a4",
       "categoryId": "vapsolo80k",
       "status": "ok",
-      "stock": 9,
+      "stock": 7,
       "visible": true,
       "price": null,
       "image": "https://i.ibb.co/Y4SZZj6X/15-MIXED-BERRY-STRAWBERRY-MANGO-GREEN-GRAPE-GRAPEFRUIT-GREENTEA-PEACH-ICED-TEA.png",
@@ -684,7 +684,7 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774877713065,
-    "updatedAt": "2026-03-30T13:35:13.065Z"
+    "rev": 1774889826967,
+    "updatedAt": "2026-03-30T16:57:06.967Z"
   }
 }
