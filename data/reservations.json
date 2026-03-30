@@ -51,53 +51,5 @@
         "unitPrice": 6500
       }
     ]
-  },
-  {
-    "id": "r_mnddfcp2_15j7t4",
-    "publicCode": "756",
-    "createdAt": 1774886215430,
-    "expiresAt": 1775059015430,
-    "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "Új foglalás érkezett",
-    "items": [
-      {
-        "productId": "p_f93b7eb924ed1_19b4e156422",
-        "qty": 1,
-        "unitPrice": 5000
-      },
-      {
-        "productId": "p_4b3ea070114908_19b5bc64622",
-        "qty": 1,
-        "unitPrice": 7000
-      },
-      {
-        "productId": "p_8b084c694c4ac_19bffc068b4",
-        "qty": 1,
-        "unitPrice": 7000
-      },
-      {
-        "productId": "p_b862159bc3f608_19beb0c6380",
-        "qty": 1,
-        "unitPrice": 6500
-      },
-      {
-        "productId": "p_6db677a6c8739_19b5bd13894",
-        "qty": 1,
-        "unitPrice": 7000
-      },
-      {
-        "productId": "p_2594e99cbade6_19b5bbdfc7a",
-        "qty": 1,
-        "unitPrice": 7000
-      },
-      {
-        "productId": "p_cd734ed84b46d_19b5bc23e59",
-        "qty": 1,
-        "unitPrice": 7000
-      }
-    ]
   }
 ]
