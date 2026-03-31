@@ -53,6 +53,15 @@
       "visible": true,
       "featuredEnabled": true,
       "secret": true
+    },
+    {
+      "id": "keyb",
+      "label_hu": "Billentyűzet",
+      "label_en": "Billentyűzet",
+      "basePrice": 0,
+      "visible": true,
+      "featuredEnabled": true,
+      "secret": false
     }
   ],
   "products": [
@@ -735,8 +744,8 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774915710256,
-    "updatedAt": "2026-03-31T00:08:30.256Z",
+    "rev": 1774915828141,
+    "updatedAt": "2026-03-31T00:10:28.141Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 9360000
