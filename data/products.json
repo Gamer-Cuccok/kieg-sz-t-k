@@ -25,7 +25,7 @@
       "basePrice": 7000,
       "visible": true,
       "featuredEnabled": true,
-      "secret": true
+      "secret": false
     },
     {
       "id": "bood12k",
@@ -744,8 +744,8 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774915903116,
-    "updatedAt": "2026-03-31T00:11:43.116Z",
+    "rev": 1774915932409,
+    "updatedAt": "2026-03-31T00:12:12.409Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 9360000
