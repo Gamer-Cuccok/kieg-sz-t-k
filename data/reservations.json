@@ -1,18 +1,1 @@
-[
-  {
-    "id": "r_mnej6216_buptlb",
-    "publicCode": "199",
-    "createdAt": 1774956325578,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_5aaf6d03437c8_19cae96fb2e",
-        "qty": 2,
-        "unitPrice": 6500
-      }
-    ]
-  }
-]
+[]
