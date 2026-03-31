@@ -3,8 +3,8 @@
     "id": "r_mnej6216_buptlb",
     "publicCode": "199",
     "createdAt": 1774956325578,
-    "expiresAt": 1775129125578,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
     "modified": false,
     "modifiedAt": 0,
     "items": [
