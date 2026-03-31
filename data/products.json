@@ -61,7 +61,7 @@
       "basePrice": 0,
       "visible": false,
       "featuredEnabled": true,
-      "secret": false
+      "secret": true
     }
   ],
   "products": [
@@ -744,8 +744,8 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774919215953,
-    "updatedAt": "2026-03-31T01:06:55.953Z",
+    "rev": 1774919218269,
+    "updatedAt": "2026-03-31T01:06:58.269Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 9360000
