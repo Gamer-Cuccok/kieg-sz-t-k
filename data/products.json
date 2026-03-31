@@ -25,7 +25,7 @@
       "basePrice": 7000,
       "visible": true,
       "featuredEnabled": true,
-      "secret": true
+      "secret": false
     },
     {
       "id": "bood12k",
@@ -43,7 +43,7 @@
       "basePrice": 6500,
       "visible": true,
       "featuredEnabled": true,
-      "secret": true
+      "secret": false
     },
     {
       "id": "tomb",
@@ -59,9 +59,9 @@
       "label_hu": "Billentyűzet",
       "label_en": "Billentyűzet",
       "basePrice": 0,
-      "visible": true,
+      "visible": false,
       "featuredEnabled": true,
-      "secret": false
+      "secret": true
     }
   ],
   "products": [
@@ -113,8 +113,8 @@
     {
       "id": "p_f93b7eb924ed1_19b4e156422",
       "categoryId": "elf30",
-      "status": "out",
-      "stock": 0,
+      "status": "ok",
+      "stock": 1,
       "visible": true,
       "secret": false,
       "price": null,
@@ -294,7 +294,7 @@
       "id": "p_4b3ea070114908_19b5bc64622",
       "categoryId": "elflush40",
       "status": "ok",
-      "stock": 2,
+      "stock": 3,
       "visible": true,
       "secret": false,
       "price": null,
@@ -399,7 +399,7 @@
       "id": "p_f711f17c5fdd3_19b6a7bed1f",
       "categoryId": "bood12k",
       "status": "ok",
-      "stock": 7,
+      "stock": 8,
       "visible": true,
       "secret": false,
       "price": null,
@@ -741,25 +741,11 @@
       "soonEta": ""
     }
   ],
-  "popups": [
-    {
-      "id": "popup_55c472ec5ed95_19d4142e7ac",
-      "enabled": true,
-      "rev": 1774916417399,
-      "title_hu": "Új termékek elérhetőek",
-      "title_en": "Új termékek elérhetőek",
-      "categoryIds": [
-        "vapsolo80k"
-      ],
-      "productIds": [],
-      "createdAt": 1774916417399,
-      "updatedAt": 1774916417399
-    }
-  ],
+  "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774916577706,
-    "updatedAt": "2026-03-31T00:22:57.706Z",
+    "rev": 1774916041417,
+    "updatedAt": "2026-03-31T00:14:01.417Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 9360000

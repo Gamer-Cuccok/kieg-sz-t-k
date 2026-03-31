@@ -243,6 +243,8 @@
       renderGrid();
       updateCartBadge();
       if(state.cartOpen) renderCart();
+      removeActivePopup();
+      setTimeout(() => showPopupsIfNeeded(), 80);
     }
   }
 
@@ -274,6 +276,8 @@
     renderGrid();
     updateCartBadge();
     if(state.cartOpen) renderCart();
+    removeActivePopup();
+    setTimeout(() => showPopupsIfNeeded(), 80);
   }
 
   function syncSecretSessionWithDoc({ rerender=false } = {}){
@@ -1841,29 +1845,51 @@
   }
 
   /* ----------------- Popups (New products) ----------------- */
+  function removeActivePopup(){
+    try{ document.getElementById("popupBg")?.remove(); }catch{}
+  }
+
   function popupHideKey(pp){
     const id = String(pp.id||"");
     const rev = Number(pp.rev || pp.updatedAt || pp.createdAt || 0) || 0;
     return `sv_popup_hide_${id}_${rev}`;
   }
 
+  function isPopupSecret(pp){
+    const allProducts = (state.productsDoc.products || []).filter(p => p && p.id);
+    for(const cid of (pp?.categoryIds || [])){
+      const category = categoryById(cid);
+      if(isSecretCategory(category)) return true;
+      if(allProducts.some(p => String(p.categoryId || "") === String(cid) && isSecretProduct(p))) return true;
+    }
+    for(const pid of (pp?.productIds || [])){
+      const product = allProducts.find(p => String(p.id) === String(pid));
+      if(product && isSecretProduct(product)) return true;
+    }
+    return false;
+  }
+
   function buildPopupQueue(){
+    if(isAdminMode) return [];
+
     const popups = (state.productsDoc.popups || []).filter(pp => pp && pp.id && (pp.enabled === false ? false : true));
-    // sort: newest first (admin list is newest first)
     popups.sort((a,b)=>(Number(b.createdAt||0)-Number(a.createdAt||0)));
 
-    const products = (state.productsDoc.products || []).filter(p=>p && p.id && p.visible !== false && canSeeProduct(p));
+    const allProducts = (state.productsDoc.products || []).filter(p=>p && p.id && p.visible !== false);
+    const products = allProducts.filter(p => canSeeProduct(p));
     const cats = (state.productsDoc.categories || []);
 
     const queue = [];
 
     for(const pp of popups){
-      // skip if user hid this rev
       try{
         if(localStorage.getItem(popupHideKey(pp)) === "1") continue;
       }catch{}
 
-      // collect product ids
+      const popupIsSecret = isPopupSecret(pp);
+      if(popupIsSecret && !isSecretModeActive()) continue;
+      if(!popupIsSecret && isSecretModeActive()) continue;
+
       const ids = new Set();
       for(const cid of (pp.categoryIds||[])){
         for(const p of products){
@@ -1909,12 +1935,11 @@
   }
 
   function showPopupsIfNeeded(){
+    removeActivePopup();
+    if(isAdminMode) return;
+
     const queue = buildPopupQueue();
     if(!queue.length) return;
-
-    // Remove existing popup if any
-    const existing = document.getElementById("popupBg");
-    if(existing) existing.remove();
 
     // Create popup container
     const bg = document.createElement("div");
@@ -2252,8 +2277,8 @@
       setLangUI();
       renderNav();
       renderGrid();
-      // popups szöveg is nyelv függő – újrarender
-      showPopupsIfNeeded();
+      removeActivePopup();
+      if(!isAdminMode) showPopupsIfNeeded();
     };
   }
 
@@ -2351,7 +2376,7 @@
     $("#app").style.display = "grid";
 
     // popups
-    setTimeout(() => showPopupsIfNeeded(), 500);
+    if(!isAdminMode) setTimeout(() => showPopupsIfNeeded(), 500);
 
     // live updates from admin (same browser)
     try{
@@ -2375,7 +2400,7 @@
             computeFeaturedByCategory();
             renderNav();
             renderGrid();
-            setTimeout(() => showPopupsIfNeeded(), 100);
+            if(!isAdminMode) setTimeout(() => showPopupsIfNeeded(), 100);
           }
         }catch{}
       };
@@ -2388,14 +2413,14 @@
         if(changed){
           renderNav();
           renderGrid();
-          setTimeout(() => showPopupsIfNeeded(), 100);
+          if(!isAdminMode) setTimeout(() => showPopupsIfNeeded(), 100);
         }
       }catch{}
       setTimeout(loop, 30_000);
     };
 
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) loadAll({ forceBust:true }).then((changed)=>{ if(changed){ renderNav(); renderGrid(); } setTimeout(() => showPopupsIfNeeded(), 100); }).catch(()=>{});
+      if (!document.hidden) loadAll({ forceBust:true }).then((changed)=>{ if(changed){ renderNav(); renderGrid(); } if(!isAdminMode) setTimeout(() => showPopupsIfNeeded(), 100); }).catch(()=>{});
     });
 
     loop();

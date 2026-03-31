@@ -779,6 +779,10 @@ if(wantReservations){
   state.dirtySales = false;
   state.dirtyReservations = false;
 
+  try{
+    const secretPassEl = $("#cfgSecretPassword");
+    if(secretPassEl) secretPassEl.value = "";
+  }catch{}
   setSaveStatus("ok","Mentve ✅");
 }catch(e){
       console.error(e);
@@ -807,10 +811,10 @@ function markDirty(flags){
   }
   if(f.sales) state.dirtySales = true;
   if(f.reservations) state.dirtyReservations = true;
-  queueAutoSave();
+  queueAutoSave(f.fast ? 250 : null);
 }
 
-  function queueAutoSave(){
+  function queueAutoSave(delayOverride=null){
     state.dirty = true;
     if(state.saving){
       state.saveQueued = true;
@@ -819,8 +823,8 @@ function markDirty(flags){
     }
     if(state.saveTimer) clearTimeout(state.saveTimer);
     setSaveStatus("busy","Változás…");
-    // ✅ MENTÉS GYORSÍTÁS: növelt alapérték 1000 ms
-    const ms = Math.max(200, Math.min(2000, Number(localStorage.getItem("sv_autosave_ms") || 1000)));
+    const baseMs = Math.max(200, Math.min(2000, Number(localStorage.getItem("sv_autosave_ms") || 700)));
+    const ms = Math.max(120, Math.min(2000, Number(delayOverride || baseMs) || baseMs));
     state.saveTimer = setTimeout(() => {
       saveDataNow();
     }, ms);
@@ -937,10 +941,10 @@ function markDirty(flags){
     try{
       const sel = $("#cfgAutosave");
       if(sel){
-        const cur = Number(localStorage.getItem("sv_autosave_ms") || 1000);
+        const cur = Number(localStorage.getItem("sv_autosave_ms") || 700);
         sel.value = String(cur);
         sel.onchange = () => {
-          const ms = Math.max(200, Math.min(2000, Number(sel.value || 1000)));
+          const ms = Math.max(200, Math.min(2000, Number(sel.value || 700)));
           localStorage.setItem("sv_autosave_ms", String(ms));
           setSaveStatus("ok","Auto-mentés beállítva ✅");
         };
@@ -952,7 +956,7 @@ function markDirty(flags){
       secretMinutesEl.addEventListener("input", () => {
         const sa = ensureSecretAccessMeta();
         sa.durationMs = Math.max(60_000, (Math.max(1, Number(secretMinutesEl.value || 60) || 60) * 60_000));
-        markDirty({ products:true });
+        markDirty({ products:true, fast:true });
       });
     }
 
@@ -1039,7 +1043,13 @@ function markDirty(flags){
         else if(k === "secret") c.secret = !!inp.checked;
         else if(k === "featuredEnabled") c.featuredEnabled = !!inp.checked;
         else c[k] = inp.value;
-        markDirty({ products:true });
+
+        const fast = (k === "visible" || k === "secret" || k === "featuredEnabled");
+        if(fast){
+          try{ renderProducts(); }catch{}
+          try{ renderPopups(); }catch{}
+        }
+        markDirty({ products:true, fast });
       };
       if(inp.type === "checkbox") inp.onchange = apply;
       else inp.oninput = apply;
@@ -1093,7 +1103,7 @@ function markDirty(flags){
 
         closeModal();
         renderAll();
-        markDirty({ products:true });
+        markDirty({ products:true, fast:true });
       }}
     ]);
   }
@@ -1192,7 +1202,7 @@ function renderProducts(){
         if(k === "stock"){
           p.stock = setProductStockValue(pid, el.value, { absolute:true });
           if(p.stock <= 0 && p.status !== "soon") p.status = "out";
-          markDirty({ products:true, stockOnly:true });
+          markDirty({ products:true, stockOnly:true, fast:true });
           return;
         }else if(k === "price"){
           p.price = (el.value === "" ? null : Math.max(0, Number(el.value||0)));
@@ -1207,7 +1217,12 @@ function renderProducts(){
           p.secret = !!el.checked;
         }
 
-        markDirty({ products:true });
+        const fast = (k === "status" || k === "categoryId" || k === "visible" || k === "secret");
+        if(fast){
+          try{ renderProducts(); }catch{}
+          try{ renderPopups(); }catch{}
+        }
+        markDirty({ products:true, fast });
       };
 
       const tag = String(el.tagName||"").toLowerCase();
@@ -2245,7 +2260,7 @@ function deleteSale(id){
           updatedAt: Date.now(),
           rev: Date.now()
         };
-        markDirty({ products:true });
+        markDirty({ products:true, fast:true });
       });
     });
 
@@ -2264,7 +2279,7 @@ function deleteSale(id){
             state.doc.popups = (state.doc.popups || []).filter(x => String(x.id) !== id);
             closeModal();
             renderPopups();
-            markDirty({ products:true });
+            markDirty({ products:true, fast:true });
           }}
         ]);
       };
