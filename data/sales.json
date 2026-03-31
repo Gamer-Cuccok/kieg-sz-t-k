@@ -1609,5 +1609,18 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_0f2f82c3f87ed_19d441b2a1b",
+    "date": "2026-03-31",
+    "name": "Szabi tesója",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_5aaf6d03437c8_19cae96fb2e",
+        "qty": 2,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
