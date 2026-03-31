@@ -113,8 +113,8 @@
     {
       "id": "p_f93b7eb924ed1_19b4e156422",
       "categoryId": "elf30",
-      "status": "ok",
-      "stock": 1,
+      "status": "out",
+      "stock": 0,
       "visible": true,
       "secret": false,
       "price": null,
@@ -294,7 +294,7 @@
       "id": "p_4b3ea070114908_19b5bc64622",
       "categoryId": "elflush40",
       "status": "ok",
-      "stock": 3,
+      "stock": 2,
       "visible": true,
       "secret": false,
       "price": null,
@@ -399,7 +399,7 @@
       "id": "p_f711f17c5fdd3_19b6a7bed1f",
       "categoryId": "bood12k",
       "status": "ok",
-      "stock": 8,
+      "stock": 7,
       "visible": true,
       "secret": false,
       "price": null,
@@ -758,8 +758,8 @@
   ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1774916418402,
-    "updatedAt": "2026-03-31T00:20:18.402Z",
+    "rev": 1774916577706,
+    "updatedAt": "2026-03-31T00:22:57.706Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 9360000
