@@ -1,1 +1,30 @@
-[]
+[
+  {
+    "id": "r_mnk30m92_3bqbge",
+    "publicCode": "696",
+    "createdAt": 1775291995046,
+    "expiresAt": 1775464795046,
+    "confirmed": false,
+    "editCount": 0,
+    "recorded": false,
+    "deleted": false,
+    "lastAction": "Új foglalás érkezett",
+    "items": [
+      {
+        "productId": "p_441538bc936fa_19be641e8b6",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_81909e3d929628_19c7af58890",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_d1c0df1b50542_19c7aee39b0",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
+  }
+]
