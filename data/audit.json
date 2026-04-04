@@ -7,7 +7,7 @@
       "deviceId": "admindev_mnkvzra8_dmq409xs",
       "sessionId": "d606f463-87de-40b1-ad8c-34f8caeb6026",
       "firstSeen": 1775340665413,
-      "lastSeen": 1775340761457,
+      "lastSeen": 1775340769895,
       "sessions": 1,
       "views": 0,
       "actions": 0,
@@ -24,11 +24,24 @@
       "suspicious": 0,
       "botSignals": [],
       "lastEvent": "tab_change",
-      "lastSummary": "Admin fül váltás: history",
+      "lastSummary": "Admin fül váltás: users",
       "notes": []
     }
   },
   "events": [
+    {
+      "id": "evt_mnkw20kw_2q8w4kvq",
+      "ts": 1775340769136,
+      "scope": "view",
+      "area": "admin",
+      "action": "tab_change",
+      "summary": "Admin fül váltás: users",
+      "sessionId": "d606f463-87de-40b1-ad8c-34f8caeb6026",
+      "deviceId": "admindev_mnkvzra8_dmq409xs",
+      "details": {
+        "tab": "users"
+      }
+    },
     {
       "id": "evt_mnkw1u8r_tgzofy23",
       "ts": 1775340760923,
@@ -226,7 +239,7 @@
     }
   ],
   "_meta": {
-    "rev": 1775340761457,
-    "updatedAt": "2026-04-04T22:12:41.457Z"
+    "rev": 1775340769895,
+    "updatedAt": "2026-04-04T22:12:49.895Z"
   }
 }
