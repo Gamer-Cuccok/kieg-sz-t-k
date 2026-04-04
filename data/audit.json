@@ -1,0 +1,76 @@
+{
+  "users": {
+    "admindev_mnkvzra8_dmq409xs": {
+      "key": "admindev_mnkvzra8_dmq409xs",
+      "area": "admin",
+      "label": "Admin kliens",
+      "deviceId": "admindev_mnkvzra8_dmq409xs",
+      "sessionId": "56100d6f-aca9-446b-b260-1c1e968c8010",
+      "firstSeen": 1775340665413,
+      "lastSeen": 1775340666521,
+      "sessions": 1,
+      "views": 0,
+      "actions": 0,
+      "lastPage": "/kieg-sz-t-k/admin",
+      "referrer": "",
+      "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "platform": "Win32",
+      "language": "hu",
+      "timezone": "Europe/Budapest",
+      "screen": "1920x1080",
+      "viewport": "1920x911",
+      "touch": false,
+      "webdriver": false,
+      "suspicious": 0,
+      "botSignals": [],
+      "lastEvent": "tab_change",
+      "lastSummary": "Admin fül váltás: sales",
+      "notes": []
+    }
+  },
+  "events": [
+    {
+      "id": "evt_mnkvztbo_0g9xzgfn",
+      "ts": 1775340666420,
+      "scope": "view",
+      "area": "admin",
+      "action": "tab_change",
+      "summary": "Admin fül váltás: sales",
+      "sessionId": "56100d6f-aca9-446b-b260-1c1e968c8010",
+      "deviceId": "admindev_mnkvzra8_dmq409xs",
+      "details": {
+        "tab": "sales"
+      }
+    },
+    {
+      "id": "evt_mnkvzszk_bx5te5ap",
+      "ts": 1775340665984,
+      "scope": "view",
+      "area": "admin",
+      "action": "tab_change",
+      "summary": "Admin fül váltás: categories",
+      "sessionId": "56100d6f-aca9-446b-b260-1c1e968c8010",
+      "deviceId": "admindev_mnkvzra8_dmq409xs",
+      "details": {
+        "tab": "categories"
+      }
+    },
+    {
+      "id": "evt_mnkvzsjp_a9fhrf6m",
+      "ts": 1775340665413,
+      "scope": "system",
+      "area": "admin",
+      "action": "admin_load",
+      "summary": "Admin adatok betöltve",
+      "sessionId": "56100d6f-aca9-446b-b260-1c1e968c8010",
+      "deviceId": "admindev_mnkvzra8_dmq409xs",
+      "details": {
+        "branch": "main"
+      }
+    }
+  ],
+  "_meta": {
+    "rev": 1775340666521,
+    "updatedAt": "2026-04-04T22:11:06.521Z"
+  }
+}
