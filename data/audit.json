@@ -5,9 +5,9 @@
       "area": "admin",
       "label": "Admin kliens",
       "deviceId": "admindev_mnkvzra8_dmq409xs",
-      "sessionId": "a2a6cf30-84f2-499a-b944-d37145988475",
+      "sessionId": "f3faf385-8aa8-49dc-b092-d62b29e62a77",
       "firstSeen": 1775340913816,
-      "lastSeen": 1775340914751,
+      "lastSeen": 1775340919831,
       "sessions": 1,
       "views": 0,
       "actions": 0,
@@ -29,6 +29,32 @@
     }
   },
   "events": [
+    {
+      "id": "evt_mnkw58fl_pmmekal2",
+      "ts": 1775340919281,
+      "scope": "view",
+      "area": "admin",
+      "action": "tab_change",
+      "summary": "Admin fül váltás: users",
+      "sessionId": "f3faf385-8aa8-49dc-b092-d62b29e62a77",
+      "deviceId": "admindev_mnkvzra8_dmq409xs",
+      "details": {
+        "tab": "users"
+      }
+    },
+    {
+      "id": "evt_mnkw587g_gpj9qxqr",
+      "ts": 1775340918988,
+      "scope": "system",
+      "area": "admin",
+      "action": "admin_load",
+      "summary": "Admin adatok betöltve",
+      "sessionId": "f3faf385-8aa8-49dc-b092-d62b29e62a77",
+      "deviceId": "admindev_mnkvzra8_dmq409xs",
+      "details": {
+        "branch": "main"
+      }
+    },
     {
       "id": "evt_mnkw54j1_t28483vt",
       "ts": 1775340914221,
@@ -57,7 +83,7 @@
     }
   ],
   "_meta": {
-    "rev": 1775340914751,
-    "updatedAt": "2026-04-04T22:15:14.751Z"
+    "rev": 1775340919831,
+    "updatedAt": "2026-04-04T22:15:19.831Z"
   }
 }
