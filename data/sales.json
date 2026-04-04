@@ -1622,5 +1622,28 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_66b67a23b1286_19d57fbcae2",
+    "date": "2026-04-04",
+    "name": "L. Árpi",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_d1c0df1b50542_19c7aee39b0",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_81909e3d929628_19c7af58890",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_441538bc936fa_19be641e8b6",
+        "qty": 2,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
