@@ -7,7 +7,7 @@
       "deviceId": "admindev_mnkvzra8_dmq409xs",
       "sessionId": "d35f6191-2cc1-4665-944c-0669544ba2fd",
       "firstSeen": 1775340913816,
-      "lastSeen": 1775340951222,
+      "lastSeen": 1775340953586,
       "sessions": 1,
       "views": 0,
       "actions": 0,
@@ -24,11 +24,24 @@
       "suspicious": 0,
       "botSignals": [],
       "lastEvent": "tab_change",
-      "lastSummary": "Admin fül váltás: categories",
+      "lastSummary": "Admin fül váltás: sales",
       "notes": []
     }
   },
   "events": [
+    {
+      "id": "evt_mnkw5yh6_iy8it0t6",
+      "ts": 1775340953034,
+      "scope": "view",
+      "area": "admin",
+      "action": "tab_change",
+      "summary": "Admin fül váltás: sales",
+      "sessionId": "d35f6191-2cc1-4665-944c-0669544ba2fd",
+      "deviceId": "admindev_mnkvzra8_dmq409xs",
+      "details": {
+        "tab": "sales"
+      }
+    },
     {
       "id": "evt_mnkw5wna_9ddhs2er",
       "ts": 1775340950662,
@@ -135,7 +148,7 @@
     }
   ],
   "_meta": {
-    "rev": 1775340951222,
-    "updatedAt": "2026-04-04T22:15:51.222Z"
+    "rev": 1775340953586,
+    "updatedAt": "2026-04-04T22:15:53.586Z"
   }
 }
