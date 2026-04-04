@@ -1,30 +1,6 @@
 (() => {
   const $ = (s) => document.querySelector(s);
 
-  function makeRuntimeId(prefix="id"){
-    return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,10)}`;
-  }
-
-  function getPersistentId(key, prefix="device"){
-    try{
-      const cur = String(localStorage.getItem(key) || "").trim();
-      if(cur) return cur;
-      const next = makeRuntimeId(prefix);
-      localStorage.setItem(key, next);
-      return next;
-    }catch{
-      return makeRuntimeId(prefix);
-    }
-  }
-
-  function clone(v){
-    return JSON.parse(JSON.stringify(v));
-  }
-
-  function safeJsonParse(text, fallback){
-    try{ return JSON.parse(text); }catch{ return fallback; }
-  }
-
   const state = {
     lang: localStorage.getItem("sv_lang") || "hu",
     active: "all",
@@ -55,20 +31,9 @@
     secretExpiresAt: 0,
     secretExpiryTimer: null,
     searchSeq: 0,
-    deviceId: getPersistentId("sv_public_device_id", "pubdev"),
-    sessionId: makeRuntimeId("pubsess"),
-    telemetryQueue: [],
-    telemetryViewsPending: 0,
-    telemetryActionsPending: 0,
-    telemetryFlushTimer: null,
-    searchLogTimer: null,
-    lastSearchLogSig: "",
-    lastSearchLogAt: 0,
-    lastSearchDisplay: "",
   };
 
   const SECRET_SESSION_LS_KEY = "sv_secret_session_v1";
-  const TELEMETRY_QUEUE_LS_KEY = "sv_telemetry_queue_v1";
 
   const isAdminMode = (()=>{
     try{ return new URLSearchParams(location.search).get("sv_admin") === "1"; }catch{ return false; }
@@ -104,342 +69,6 @@
 
   function naturalCompare(a, b){
     return String(a ?? "").localeCompare(String(b ?? ""), locale(), { numeric: true, sensitivity: "base" });
-  }
-
-  function currentTelemetryProfile(area="public"){
-    const nav = globalThis.navigator || {};
-    const screenObj = globalThis.screen || {};
-    const botSignals = [];
-    if(nav.webdriver) botSignals.push("webdriver");
-    if(Number(nav.maxTouchPoints || 0) > 8) botSignals.push("high-touch");
-    return {
-      key: state.deviceId,
-      label: area === "admin" ? "Admin kliens" : "Publikus kliens",
-      area,
-      deviceId: state.deviceId,
-      sessionId: state.sessionId,
-      lastSeen: Date.now(),
-      lastPage: `${location.pathname || "/"}${location.search || ""}`,
-      referrer: String(document.referrer || ""),
-      ua: String(nav.userAgent || ""),
-      platform: String(nav.platform || ""),
-      language: String(nav.language || ""),
-      timezone: (() => { try{ return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; }catch{ return ""; } })(),
-      screen: `${screenObj.width || 0}x${screenObj.height || 0}`,
-      viewport: `${globalThis.innerWidth || 0}x${globalThis.innerHeight || 0}`,
-      touch: Number(nav.maxTouchPoints || 0) > 0,
-      webdriver: !!nav.webdriver,
-      suspicious: botSignals.length,
-      botSignals,
-      viewsIncrement: state.telemetryViewsPending,
-      actionsIncrement: state.telemetryActionsPending,
-      firstSeen: Date.now(),
-      sessions: 1,
-    };
-  }
-
-  function loadTelemetryQueue(){
-    try{
-      const arr = safeJsonParse(localStorage.getItem(TELEMETRY_QUEUE_LS_KEY) || "[]", []);
-      return Array.isArray(arr) ? arr : [];
-    }catch{ return []; }
-  }
-
-  function saveTelemetryQueue(){
-    try{ localStorage.setItem(TELEMETRY_QUEUE_LS_KEY, JSON.stringify(state.telemetryQueue || [])); }catch{}
-  }
-
-  function summarizeTelemetryQueue(queue){
-    const list = Array.isArray(queue) ? queue : [];
-    const summary = {
-      viewsIncrement: 0,
-      actionsIncrement: 0,
-      secretSearchesIncrement: 0,
-      reservationsIncrement: 0,
-      cartAddsIncrement: 0,
-      cartChangesIncrement: 0,
-      searchesIncrement: 0,
-      lastSearchAt: 0,
-      lastSearchText: "",
-      lastSecretSearchAt: 0,
-      lastReservationAt: 0,
-      lastCartAt: 0,
-      lastImportantEvent: null,
-    };
-    for(const ev of list){
-      const action = String(ev && ev.action || "");
-      const ts = Number(ev && ev.ts || 0) || Date.now();
-      if(action === "page_open"){
-        summary.viewsIncrement += 1;
-        continue;
-      }
-      summary.actionsIncrement += 1;
-      if(action === "secret_password_search"){
-        summary.secretSearchesIncrement += 1;
-        summary.lastSecretSearchAt = Math.max(summary.lastSecretSearchAt, ts);
-      }
-      if(action === "reservation_success"){
-        summary.reservationsIncrement += 1;
-        summary.lastReservationAt = Math.max(summary.lastReservationAt, ts);
-      }
-      if(action === "cart_add"){
-        summary.cartAddsIncrement += 1;
-        summary.cartChangesIncrement += 1;
-        summary.lastCartAt = Math.max(summary.lastCartAt, ts);
-      }
-      if(action === "cart_qty" || action === "cart_remove"){
-        summary.cartChangesIncrement += 1;
-        summary.lastCartAt = Math.max(summary.lastCartAt, ts);
-      }
-      if(action === "search_query"){
-        summary.searchesIncrement += 1;
-        summary.lastSearchAt = Math.max(summary.lastSearchAt, ts);
-        summary.lastSearchText = String(ev?.details?.textMasked || ev?.details?.text || ev?.details?.query || "");
-      }
-      if(action === "search_clear"){
-        summary.lastSearchAt = Math.max(summary.lastSearchAt, ts);
-        summary.lastSearchText = "";
-      }
-      if(!summary.lastImportantEvent || ts >= Number(summary.lastImportantEvent.ts || 0)){
-        summary.lastImportantEvent = { action, summary: String(ev && ev.summary || ""), ts };
-      }
-    }
-    return summary;
-  }
-
-  function mergeAuditUser(prev, next){
-    const base = prev && typeof prev === "object" ? prev : {};
-    const incoming = next && typeof next === "object" ? next : {};
-    const botSignals = Array.from(new Set([...(Array.isArray(base.botSignals) ? base.botSignals : []), ...(Array.isArray(incoming.botSignals) ? incoming.botSignals : [])].filter(Boolean))).slice(0, 20);
-    return {
-      key: String(incoming.key || base.key || incoming.deviceId || base.deviceId || state.deviceId),
-      area: String(incoming.area || base.area || "public"),
-      label: String(incoming.label || base.label || "Publikus kliens"),
-      deviceId: String(incoming.deviceId || base.deviceId || state.deviceId),
-      sessionId: String(incoming.sessionId || base.sessionId || state.sessionId),
-      firstSeen: Number(base.firstSeen || incoming.firstSeen || Date.now()) || Date.now(),
-      lastSeen: Math.max(Number(base.lastSeen || 0) || 0, Number(incoming.lastSeen || 0) || 0, Date.now()),
-      sessions: Math.max(1, Number(base.sessions || 1) || 1, Number(incoming.sessions || 1) || 1),
-      views: Math.max(0, Number(base.views || 0) || 0) + Math.max(0, Number(incoming.viewsIncrement || 0) || 0),
-      actions: Math.max(0, Number(base.actions || 0) || 0) + Math.max(0, Number(incoming.actionsIncrement || 0) || 0),
-      lastPage: String(incoming.lastPage || base.lastPage || ""),
-      referrer: String(incoming.referrer || base.referrer || ""),
-      ua: String(incoming.ua || base.ua || ""),
-      platform: String(incoming.platform || base.platform || ""),
-      language: String(incoming.language || base.language || ""),
-      timezone: String(incoming.timezone || base.timezone || ""),
-      screen: String(incoming.screen || base.screen || ""),
-      viewport: String(incoming.viewport || base.viewport || ""),
-      touch: (incoming.touch === undefined) ? !!base.touch : !!incoming.touch,
-      webdriver: (incoming.webdriver === undefined) ? !!base.webdriver : !!incoming.webdriver,
-      suspicious: Math.max(0, Number(base.suspicious || 0) || 0, Number(incoming.suspicious || 0) || 0),
-      botSignals,
-      lastEvent: String(incoming.lastEvent || base.lastEvent || ""),
-      lastSummary: String(incoming.lastSummary || base.lastSummary || ""),
-      secretSearches: Math.max(0, Number(base.secretSearches || 0) || 0) + Math.max(0, Number(incoming.secretSearchesIncrement || 0) || 0),
-      reservations: Math.max(0, Number(base.reservations || 0) || 0) + Math.max(0, Number(incoming.reservationsIncrement || 0) || 0),
-      cartAdds: Math.max(0, Number(base.cartAdds || 0) || 0) + Math.max(0, Number(incoming.cartAddsIncrement || 0) || 0),
-      cartChanges: Math.max(0, Number(base.cartChanges || 0) || 0) + Math.max(0, Number(incoming.cartChangesIncrement || 0) || 0),
-      searches: Math.max(0, Number(base.searches || 0) || 0) + Math.max(0, Number(incoming.searchesIncrement || 0) || 0),
-      lastSearchAt: Math.max(Number(base.lastSearchAt || 0) || 0, Number(incoming.lastSearchAt || 0) || 0),
-      lastSearchText: String(incoming.lastSearchText !== undefined ? incoming.lastSearchText : (base.lastSearchText || "")),
-      lastSecretSearchAt: Math.max(Number(base.lastSecretSearchAt || 0) || 0, Number(incoming.lastSecretSearchAt || 0) || 0),
-      lastReservationAt: Math.max(Number(base.lastReservationAt || 0) || 0, Number(incoming.lastReservationAt || 0) || 0),
-      lastCartAt: Math.max(Number(base.lastCartAt || 0) || 0, Number(incoming.lastCartAt || 0) || 0),
-    };
-  }
-
-  async function writeTelemetryWithGithub(queue){
-    if(!queue.length || !(globalThis.ShadowGH && typeof ShadowGH.getFile === "function" && typeof ShadowGH.putFileSafe === "function")) return false;
-    const cfg = getWriteCfg();
-    if(!cfg) return false;
-
-    const buildPlan = async () => {
-      let sha = null;
-      let remote = { events: [], users: {}, _meta: {} };
-      try{
-        const latest = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path: "data/audit.json" });
-        sha = latest.sha || null;
-        remote = safeJsonParse(latest.content || "{}", remote) || remote;
-      }catch(e){
-        if(Number(e?.status || 0) !== 404) throw e;
-      }
-      const eventsMap = new Map((Array.isArray(remote.events) ? remote.events : []).map(ev => [String(ev && ev.id || makeRuntimeId("evt")), ev]));
-      for(const ev of queue){
-        if(!ev || !ev.id) continue;
-        eventsMap.set(String(ev.id), clone(ev));
-      }
-      const users = (remote.users && typeof remote.users === "object") ? remote.users : {};
-      const telemetrySummary = summarizeTelemetryQueue(queue);
-      const profile = mergeAuditUser(users[state.deviceId], {
-        ...currentTelemetryProfile(isAdminMode ? "admin" : "public"),
-        ...telemetrySummary,
-        lastEvent: telemetrySummary.lastImportantEvent?.action || queue[0]?.action || "page",
-        lastSummary: telemetrySummary.lastImportantEvent?.summary || queue[0]?.summary || ""
-      });
-      users[state.deviceId] = profile;
-      return {
-        sha,
-        content: JSON.stringify({
-          users,
-          events: [...eventsMap.values()].sort((a,b) => Number(b.ts || 0) - Number(a.ts || 0)).slice(0, 2500),
-          _meta: { rev: Date.now(), updatedAt: new Date().toISOString() }
-        }, null, 2)
-      };
-    };
-
-    let plan = await buildPlan();
-    await ShadowGH.putFileSafe({
-      token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
-      path: "data/audit.json",
-      message: "Update audit.json",
-      content: plan.content,
-      sha: plan.sha,
-      onConflict: async () => {
-        plan = await buildPlan();
-        return { content: plan.content, sha: plan.sha };
-      }
-    });
-    return true;
-  }
-
-  async function flushTelemetry(){
-    if(!state.telemetryQueue.length) return;
-    const queue = [...state.telemetryQueue];
-    try{
-      const api = String(state.reserveApi || localStorage.getItem("sv_res_api") || "").trim();
-      if(api){
-        const telemetrySummary = summarizeTelemetryQueue(queue);
-        try{
-          const r = await fetch(api.replace(/\/+$/,''), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "telemetry.batch",
-              events: queue,
-              summary: telemetrySummary,
-              user: {
-                ...currentTelemetryProfile(isAdminMode ? "admin" : "public"),
-                ...telemetrySummary,
-                lastEvent: telemetrySummary.lastImportantEvent?.action || queue[0]?.action || "page",
-                lastSummary: telemetrySummary.lastImportantEvent?.summary || queue[0]?.summary || ""
-              }
-            })
-          });
-          if(r.ok){
-            state.telemetryQueue = state.telemetryQueue.filter(ev => !queue.some(q => q.id === ev.id));
-            state.telemetryViewsPending = 0;
-            state.telemetryActionsPending = 0;
-            saveTelemetryQueue();
-            return;
-          }
-        }catch{}
-      }
-      if(await writeTelemetryWithGithub(queue)){
-        state.telemetryQueue = state.telemetryQueue.filter(ev => !queue.some(q => q.id === ev.id));
-        state.telemetryViewsPending = 0;
-        state.telemetryActionsPending = 0;
-        saveTelemetryQueue();
-      }
-    }catch{}
-  }
-
-  function sendTelemetryBeacon(){
-    try{
-      if(!state.telemetryQueue.length) return false;
-      const api = String(state.reserveApi || localStorage.getItem("sv_res_api") || "").trim();
-      if(!api || !(navigator && typeof navigator.sendBeacon === "function")) return false;
-      const queue = [...state.telemetryQueue];
-      const telemetrySummary = summarizeTelemetryQueue(queue);
-      const payload = {
-        action: "telemetry.batch",
-        events: queue,
-        summary: telemetrySummary,
-        user: {
-          ...currentTelemetryProfile(isAdminMode ? "admin" : "public"),
-          ...telemetrySummary,
-          lastEvent: telemetrySummary.lastImportantEvent?.action || queue[0]?.action || "page",
-          lastSummary: telemetrySummary.lastImportantEvent?.summary || queue[0]?.summary || ""
-        }
-      };
-      return navigator.sendBeacon(api.replace(/\/+$/,''), new Blob([JSON.stringify(payload)], { type: "application/json" }));
-    }catch{
-      return false;
-    }
-  }
-
-  function scheduleTelemetryFlush(delay=1200){
-    if(state.telemetryFlushTimer) clearTimeout(state.telemetryFlushTimer);
-    state.telemetryFlushTimer = setTimeout(() => { flushTelemetry().catch(()=>{}); }, delay);
-  }
-
-  function queueTelemetry(action, summary, details={}, opts={}){
-    const area = isAdminMode ? "admin" : "public";
-    const scope = String(opts.scope || area);
-    const ev = {
-      id: makeRuntimeId("evt"),
-      ts: Date.now(),
-      scope,
-      area,
-      action: String(action || "event"),
-      summary: String(summary || ""),
-      sessionId: state.sessionId,
-      deviceId: state.deviceId,
-      details: (details && typeof details === "object") ? details : { value: details }
-    };
-    state.telemetryQueue.push(ev);
-    if(state.telemetryQueue.length > 300) state.telemetryQueue = state.telemetryQueue.slice(-300);
-    if(action === "page_open") state.telemetryViewsPending += 1;
-    else state.telemetryActionsPending += 1;
-    saveTelemetryQueue();
-    scheduleTelemetryFlush((opts && Object.prototype.hasOwnProperty.call(opts, "delay")) ? opts.delay : 1200);
-  }
-
-  function normalizeSearchValue(raw){
-    return String(raw || "").replace(/\s+/g, " ").trim();
-  }
-
-  function queueSearchTelemetry(rawValue, opts={}){
-    const value = normalizeSearchValue(rawValue);
-    const via = String(opts.via || "search");
-    const force = !!opts.force;
-    const now = Date.now();
-
-    if(value){
-      const sig = `search_query::${value}`;
-      if(!force && sig === state.lastSearchLogSig && (now - Number(state.lastSearchLogAt || 0)) < 4000) return;
-      state.lastSearchLogSig = sig;
-      state.lastSearchLogAt = now;
-      state.lastSearchDisplay = value;
-      queueTelemetry("search_query", `Keresés: ${value}`, {
-        via,
-        text: value,
-        textMasked: value,
-        length: value.length,
-        normalized: norm(value)
-      }, { scope:"activity" });
-      return;
-    }
-
-    if(state.lastSearchDisplay){
-      const prev = state.lastSearchDisplay;
-      state.lastSearchLogSig = "search_clear";
-      state.lastSearchLogAt = now;
-      state.lastSearchDisplay = "";
-      queueTelemetry("search_clear", "Keresés törölve", {
-        via,
-        previousText: prev,
-        previousLength: prev.length
-      }, { scope:"activity" });
-    }
-  }
-
-  function scheduleSearchTelemetry(rawValue, opts={}){
-    if(state.searchLogTimer) clearTimeout(state.searchLogTimer);
-    const delay = Math.max(250, Number(opts.delay || 700) || 700);
-    state.searchLogTimer = setTimeout(() => {
-      queueSearchTelemetry(rawValue, opts);
-    }, delay);
   }
 
   function loadFavorites(){
@@ -689,18 +318,6 @@
     if(!candidate || !cfg.passwordHash) return false;
     const hash = await sha256Hex(candidate);
     if(String(hash || "").trim().toLowerCase() !== cfg.passwordHash) return false;
-    try{
-      state.lastSearchLogSig = "secret_password_search";
-      state.lastSearchLogAt = Date.now();
-      state.lastSearchDisplay = "";
-      queueTelemetry("secret_password_search", "Titkos jelszó sikeresen beírva a keresőbe", {
-        via: "search",
-        success: true,
-        secretMatched: true,
-        textMasked: "[SECRET_SUCCESS]",
-        textLength: candidate.length
-      }, { scope:"security", delay: 250 });
-    }catch{}
     activateSecretMode(cfg.durationMs);
     return true;
   }
@@ -902,7 +519,6 @@
       }
 
       state.cart.set(pid, cur + 1);
-      try{ queueTelemetry("cart_add", "Termék kosárba helyezve", { productId: pid, qty: cur + 1 }); }catch{}
       saveCart();
       updateCartBadge();
       if(state.cartOpen) renderCart();
@@ -917,14 +533,8 @@
     const pid = String(productId || "");
     const q = Math.max(0, Number(nextQty || 0));
     if(!pid) return;
-    const prev = cartQty(pid);
     if(q <= 0) state.cart.delete(pid);
     else state.cart.set(pid, q);
-    if(q !== prev){
-      const action = q <= 0 ? "cart_remove" : "cart_qty";
-      const summary = q <= 0 ? "Termék kivéve a kosárból" : "Kosár mennyiség módosítva";
-      try{ queueTelemetry(action, summary, { productId: pid, qty: q, previousQty: prev }); }catch{}
-    }
     saveCart();
     updateCartBadge();
     if(state.cartOpen) renderCart();
@@ -1409,7 +1019,6 @@
 
 
       try{
-        queueTelemetry("reservation_success", "Foglalás sikeresen leadva", { reservationId: id, publicCode, itemCount: items.length }, { scope:"activity", delay: 250 });
         state.reservations = [...(state.reservations||[]), reservation];
         state.reservationsHash = '';
         rebuildReservedMap();
@@ -2632,7 +2241,7 @@
     const input = $("#search");
     if(!input) return;
 
-    const applySearch = async (opts={}) => {
+    const applySearch = async () => {
       const seq = ++state.searchSeq;
       const raw = input.value || "";
       const unlocked = await tryUnlockFromSearchValue(raw);
@@ -2640,13 +2249,10 @@
       if(unlocked){
         state.search = "";
         input.value = "";
-        if(state.searchLogTimer) clearTimeout(state.searchLogTimer);
         return;
       }
       state.search = raw;
       renderGrid();
-      if(opts.immediate) queueSearchTelemetry(raw, { via: opts.via || "search", force: !!opts.force });
-      else scheduleSearchTelemetry(raw, { via: opts.via || "search" });
     };
 
     try{
@@ -2655,12 +2261,12 @@
       input.spellcheck = false;
     }catch{}
 
-    input.addEventListener("input", () => applySearch({ via:"input" }));
-    input.addEventListener("search", () => applySearch({ via:"search", immediate:true, force:true }));
-    input.addEventListener("change", () => applySearch({ via:"change", immediate:true, force:true }));
-    input.addEventListener("compositionend", () => applySearch({ via:"compositionend", immediate:true, force:true }));
+    input.addEventListener("input", applySearch);
+    input.addEventListener("search", applySearch);
+    input.addEventListener("change", applySearch);
+    input.addEventListener("compositionend", applySearch);
     input.addEventListener("keyup", (e)=>{
-      if(e.key === "Enter" || e.key === "Escape") applySearch({ via:`keyup:${e.key}`, immediate:true, force:true });
+      if(e.key === "Enter" || e.key === "Escape") applySearch();
     });
   }
 
@@ -2742,7 +2348,6 @@
   }
 
   async function init() {
-    state.telemetryQueue = loadTelemetryQueue();
     applySyncParams();
     setLangUI();
     initLang();
@@ -2757,7 +2362,6 @@
 
     // load from network (RAW) to be sure
     await loadAll({ forceBust:true });
-    try{ queueTelemetry("page_open", isAdminMode ? "Admin beágyazott nézet megnyitva" : "Publikus oldal megnyitva", { adminMode: isAdminMode, path: `${location.pathname || "/"}${location.search || ""}` }, { delay: 250 }); }catch{}
     syncSecretSessionWithDoc({ rerender:false });
 
     renderNav();
@@ -2816,16 +2420,9 @@
     };
 
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden){
-        loadAll({ forceBust:true }).then((changed)=>{ if(changed){ renderNav(); renderGrid(); } if(!isAdminMode) setTimeout(() => showPopupsIfNeeded(), 100); }).catch(()=>{});
-      }
+      if (!document.hidden) loadAll({ forceBust:true }).then((changed)=>{ if(changed){ renderNav(); renderGrid(); } if(!isAdminMode) setTimeout(() => showPopupsIfNeeded(), 100); }).catch(()=>{});
     });
 
-    addEventListener("pagehide", () => {
-      if(!sendTelemetryBeacon()) flushTelemetry().catch(()=>{});
-    });
-
-    flushTelemetry().catch(()=>{});
     loop();
   }
 
