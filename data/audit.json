@@ -7,7 +7,7 @@
       "deviceId": "admindev_mnkvzra8_dmq409xs",
       "sessionId": "5966d26a-d565-43db-9364-0f2b3bfb6a50",
       "firstSeen": 1775340913816,
-      "lastSeen": 1775340982006,
+      "lastSeen": 1775341143573,
       "sessions": 1,
       "views": 0,
       "actions": 0,
@@ -23,12 +23,25 @@
       "webdriver": false,
       "suspicious": 0,
       "botSignals": [],
-      "lastEvent": "admin_load",
-      "lastSummary": "Admin adatok betöltve",
+      "lastEvent": "tab_change",
+      "lastSummary": "Admin fül váltás: history",
       "notes": []
     }
   },
   "events": [
+    {
+      "id": "evt_mnkwa0v9_6ztiktp7",
+      "ts": 1775341142757,
+      "scope": "view",
+      "area": "admin",
+      "action": "tab_change",
+      "summary": "Admin fül váltás: history",
+      "sessionId": "5966d26a-d565-43db-9364-0f2b3bfb6a50",
+      "deviceId": "admindev_mnkvzra8_dmq409xs",
+      "details": {
+        "tab": "history"
+      }
+    },
     {
       "id": "evt_mnkw6jtz_0b63ivvs",
       "ts": 1775340980711,
@@ -187,7 +200,7 @@
     }
   ],
   "_meta": {
-    "rev": 1775340982006,
-    "updatedAt": "2026-04-04T22:16:22.006Z"
+    "rev": 1775341143573,
+    "updatedAt": "2026-04-04T22:19:03.573Z"
   }
 }
