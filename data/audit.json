@@ -5,9 +5,9 @@
       "area": "admin",
       "label": "Admin kliens",
       "deviceId": "admindev_mnkvzra8_dmq409xs",
-      "sessionId": "867686ad-6855-4add-b0dd-5e075724c2fd",
+      "sessionId": "dd033c15-acd2-4a22-b5fd-db365a15fff2",
       "firstSeen": 1775340665413,
-      "lastSeen": 1775340750685,
+      "lastSeen": 1775340755757,
       "sessions": 1,
       "views": 0,
       "actions": 0,
@@ -29,6 +29,19 @@
     }
   },
   "events": [
+    {
+      "id": "evt_mnkw1p9x_vhsuee6g",
+      "ts": 1775340754485,
+      "scope": "system",
+      "area": "admin",
+      "action": "admin_load",
+      "summary": "Admin adatok betöltve",
+      "sessionId": "dd033c15-acd2-4a22-b5fd-db365a15fff2",
+      "deviceId": "admindev_mnkvzra8_dmq409xs",
+      "details": {
+        "branch": "main"
+      }
+    },
     {
       "id": "evt_mnkw1lck_k1k8noj8",
       "ts": 1775340749396,
@@ -187,7 +200,7 @@
     }
   ],
   "_meta": {
-    "rev": 1775340750685,
-    "updatedAt": "2026-04-04T22:12:30.685Z"
+    "rev": 1775340755757,
+    "updatedAt": "2026-04-04T22:12:35.757Z"
   }
 }
