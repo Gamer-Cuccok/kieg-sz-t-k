@@ -3,8 +3,8 @@
     "id": "r_mnk30m92_3bqbge",
     "publicCode": "696",
     "createdAt": 1775291995046,
-    "expiresAt": 1775464795046,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
     "modified": true,
     "modifiedAt": 1775296731101,
     "items": [
