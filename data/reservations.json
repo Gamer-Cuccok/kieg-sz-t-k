@@ -1,1 +1,25 @@
-[]
+[
+  {
+    "id": "r_mnkc6l7i_hlz967",
+    "publicCode": "134",
+    "createdAt": 1775307390174,
+    "expiresAt": 1775480190174,
+    "confirmed": false,
+    "editCount": 0,
+    "recorded": false,
+    "deleted": false,
+    "lastAction": "Új foglalás érkezett",
+    "items": [
+      {
+        "productId": "p_5aaf6d03437c8_19cae96fb2e",
+        "qty": 2,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_81909e3d929628_19c7af58890",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
+  }
+]
