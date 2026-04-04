@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Gamer Cuccok Admin</title>
-  <link rel="stylesheet" href="assets/styles.css?v=sv_fix18_20260331" />
+  <link rel="stylesheet" href="assets/styles.css?v=sv_fix19_20260404" />
   <link rel="icon" type="image/png" href="assets/favicon.png">
 </head>
 <body>
@@ -21,6 +21,7 @@
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <a class="ghost" href="./">Katalógus</a>
+        <button class="ghost" id="btnHistory">Előzmények</button>
         <button class="ghost" id="btnReload">Reload</button>
       </div>
     </div>
@@ -32,6 +33,8 @@
       <button data-tab="chart">Diagramm</button>
       <button data-tab="popups">Pop-upok</button>
       <button data-tab="settings">Beállítások</button>
+      <button data-tab="users">Users</button>
+      <button data-tab="history">Előzmények</button>
     </div>
 
     <div class="panel" id="panelProducts"></div>
@@ -40,6 +43,8 @@
     <div class="panel" id="panelChart" style="display:none"></div>
     <div class="panel" id="panelPopups" style="display:none"></div>
     <div class="panel" id="panelSettings" style="display:none"></div>
+    <div class="panel" id="panelUsers" style="display:none"></div>
+    <div class="panel" id="panelHistory" style="display:none"></div>
   </div>
 
   <!-- MODAL (prompt helyett) -->
@@ -57,7 +62,7 @@
     </div>
   </div>
 
-  <script src="assets/github.js?v=sv_fix18_20260331"></script>
-  <script src="assets/admin.js?v=sv_fix18_20260331"></script>
+  <script src="assets/github.js?v=sv_fix19_20260404"></script>
+  <script src="assets/admin.js?v=sv_fix19_20260404"></script>
 </body>
 </html>
