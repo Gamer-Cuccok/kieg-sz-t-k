@@ -368,7 +368,7 @@
     }
   }
 
-  function scheduleTelemetryFlush(delay=2500){
+  function scheduleTelemetryFlush(delay=1200){
     if(state.telemetryFlushTimer) clearTimeout(state.telemetryFlushTimer);
     state.telemetryFlushTimer = setTimeout(() => { flushTelemetry().catch(()=>{}); }, delay);
   }
@@ -392,7 +392,7 @@
     if(action === "page_open") state.telemetryViewsPending += 1;
     else state.telemetryActionsPending += 1;
     saveTelemetryQueue();
-    scheduleTelemetryFlush(opts.delay || 3000);
+    scheduleTelemetryFlush((opts && Object.prototype.hasOwnProperty.call(opts, "delay")) ? opts.delay : 1200);
   }
 
   function normalizeSearchValue(raw){
@@ -699,7 +699,7 @@
         secretMatched: true,
         textMasked: "[SECRET_SUCCESS]",
         textLength: candidate.length
-      }, { scope:"security" });
+      }, { scope:"security", delay: 250 });
     }catch{}
     activateSecretMode(cfg.durationMs);
     return true;
@@ -1409,7 +1409,7 @@
 
 
       try{
-        queueTelemetry("reservation_success", "Foglalás sikeresen leadva", { reservationId: id, publicCode, itemCount: items.length });
+        queueTelemetry("reservation_success", "Foglalás sikeresen leadva", { reservationId: id, publicCode, itemCount: items.length }, { scope:"activity", delay: 250 });
         state.reservations = [...(state.reservations||[]), reservation];
         state.reservationsHash = '';
         rebuildReservedMap();
@@ -2757,7 +2757,7 @@
 
     // load from network (RAW) to be sure
     await loadAll({ forceBust:true });
-    try{ queueTelemetry("page_open", isAdminMode ? "Admin beágyazott nézet megnyitva" : "Publikus oldal megnyitva", { adminMode: isAdminMode, path: `${location.pathname || "/"}${location.search || ""}` }, { delay: 1500 }); }catch{}
+    try{ queueTelemetry("page_open", isAdminMode ? "Admin beágyazott nézet megnyitva" : "Publikus oldal megnyitva", { adminMode: isAdminMode, path: `${location.pathname || "/"}${location.search || ""}` }, { delay: 250 }); }catch{}
     syncSecretSessionWithDoc({ rerender:false });
 
     renderNav();

@@ -395,7 +395,6 @@
     "copy_sync_link",
     "reload",
     "admin_load",
-    "page_open",
     "tab_visible",
     "lang_switch",
     "favorite_add",
