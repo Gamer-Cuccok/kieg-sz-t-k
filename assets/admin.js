@@ -9,10 +9,38 @@
     resApi: "sv_res_api",
   };
 
+  function makeRuntimeId(prefix="id"){
+    return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,10)}`;
+  }
+
+  function getPersistentId(key, prefix="device"){
+    try{
+      const cur = String(localStorage.getItem(key) || "").trim();
+      if(cur) return cur;
+      const next = makeRuntimeId(prefix);
+      localStorage.setItem(key, next);
+      return next;
+    }catch{
+      return makeRuntimeId(prefix);
+    }
+  }
+
+  function createDocMutationTracker(){
+    return {
+      productUpserts: new Set(),
+      productDeletes: new Set(),
+      categoryUpserts: new Set(),
+      categoryDeletes: new Set(),
+      popupsDirty: false,
+      metaDirty: false,
+    };
+  }
+
   const state = {
-    doc: { categories: [], products: [] },
+    doc: { categories: [], products: [], popups: [], _meta: {} },
     sales: [],
     reservations: [],
+    audit: { events: [], users: {}, _meta: {} },
     dirtyReservations: false,
     loaded: false,
     saving: false,
@@ -20,14 +48,24 @@
     dirty: false,
     dirtyProducts: false,
     dirtySales: false,
+    dirtyAudit: false,
     productsStructuralDirty: false,
     stockDeltaByProduct: new Map(),
     stockAbsoluteByProduct: new Map(),
+    docMutations: createDocMutationTracker(),
+    salesUpserts: new Set(),
+    salesDeletes: new Set(),
+    reservationUpserts: new Set(),
+    reservationDeletes: new Set(),
+    auditPendingEvents: [],
+    auditUsersDirty: new Map(),
     saveTimer: null,
-    shas: { products: null, sales: null },
+    shas: { products: null, sales: null, reservations: null, audit: null },
     // hogy a public oldal biztosan megtalálja a RAW forrást (telefonon is)
     forceSourceSync: false,
-    clientId: (globalThis.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2)),
+    deviceId: getPersistentId("sv_admin_device_id", "admindev"),
+    clientId: (globalThis.crypto && crypto.randomUUID) ? crypto.randomUUID() : makeRuntimeId("adminsess"),
+    activeTab: "products",
     filters: {
       productsCat: "all",
       salesCat: "all",
@@ -39,7 +77,10 @@
       chartWeek: "",
       chartDay: "",
       productsSearch: "",
-      salesSearch: ""
+      salesSearch: "",
+      historySearch: "",
+      historyType: "all",
+      usersSearch: ""
     }
   };
 
@@ -49,6 +90,281 @@
     dot.classList.remove("ok","busy","bad");
     dot.classList.add(type);
     $("#saveText").textContent = text;
+  }
+
+  function clone(v){
+    return JSON.parse(JSON.stringify(v));
+  }
+
+  function emptyDoc(){
+    return { categories: [], products: [], popups: [], _meta: {} };
+  }
+
+  function emptyAudit(){
+    return { events: [], users: {}, _meta: {} };
+  }
+
+  function safeJsonParse(text, fallback){
+    try{
+      return JSON.parse(text);
+    }catch{
+      return fallback;
+    }
+  }
+
+  function resetDocMutationTracker(){
+    state.docMutations = createDocMutationTracker();
+  }
+
+  function hasDocMutations(){
+    const m = state.docMutations || createDocMutationTracker();
+    return !!(m.popupsDirty || m.metaDirty || m.productUpserts.size || m.productDeletes.size || m.categoryUpserts.size || m.categoryDeletes.size || state.stockDeltaByProduct.size || state.stockAbsoluteByProduct.size);
+  }
+
+  function trackProductUpsert(pid){
+    const key = String(pid || "");
+    if(!key) return;
+    state.docMutations.productDeletes.delete(key);
+    state.docMutations.productUpserts.add(key);
+  }
+
+  function trackProductDelete(pid){
+    const key = String(pid || "");
+    if(!key) return;
+    state.docMutations.productUpserts.delete(key);
+    state.docMutations.productDeletes.add(key);
+    state.stockDeltaByProduct.delete(key);
+    state.stockAbsoluteByProduct.delete(key);
+  }
+
+  function trackCategoryUpsert(cid){
+    const key = String(cid || "");
+    if(!key) return;
+    state.docMutations.categoryDeletes.delete(key);
+    state.docMutations.categoryUpserts.add(key);
+  }
+
+  function trackCategoryDelete(cid){
+    const key = String(cid || "");
+    if(!key) return;
+    state.docMutations.categoryUpserts.delete(key);
+    state.docMutations.categoryDeletes.add(key);
+  }
+
+  function trackPopupsDirty(){
+    state.docMutations.popupsDirty = true;
+  }
+
+  function trackMetaDirty(){
+    state.docMutations.metaDirty = true;
+  }
+
+  function resetSalesMutationTracker(){
+    state.salesUpserts = new Set();
+    state.salesDeletes = new Set();
+  }
+
+  function trackSaleUpsert(id){
+    const key = String(id || "");
+    if(!key) return;
+    state.salesDeletes.delete(key);
+    state.salesUpserts.add(key);
+  }
+
+  function trackSaleDelete(id){
+    const key = String(id || "");
+    if(!key) return;
+    state.salesUpserts.delete(key);
+    state.salesDeletes.add(key);
+  }
+
+  function resetReservationMutationTracker(){
+    state.reservationUpserts = new Set();
+    state.reservationDeletes = new Set();
+  }
+
+  function trackReservationUpsert(id){
+    const key = String(id || "");
+    if(!key) return;
+    state.reservationDeletes.delete(key);
+    state.reservationUpserts.add(key);
+  }
+
+  function trackReservationDelete(id){
+    const key = String(id || "");
+    if(!key) return;
+    state.reservationUpserts.delete(key);
+    state.reservationDeletes.add(key);
+  }
+
+  function normalizeAudit(doc){
+    const base = (!doc || typeof doc !== "object") ? emptyAudit() : doc;
+    const usersRaw = (base.users && typeof base.users === "object") ? base.users : {};
+    const users = {};
+    Object.entries(usersRaw).forEach(([key, value]) => {
+      if(!key || !value || typeof value !== "object") return;
+      users[String(key)] = {
+        key: String(key),
+        area: String(value.area || "unknown"),
+        label: String(value.label || value.area || "unknown"),
+        deviceId: String(value.deviceId || key),
+        sessionId: String(value.sessionId || ""),
+        firstSeen: Number(value.firstSeen || value.createdAt || 0) || 0,
+        lastSeen: Number(value.lastSeen || value.updatedAt || 0) || 0,
+        sessions: Math.max(1, Number(value.sessions || 1) || 1),
+        views: Math.max(0, Number(value.views || 0) || 0),
+        actions: Math.max(0, Number(value.actions || 0) || 0),
+        lastPage: String(value.lastPage || ""),
+        referrer: String(value.referrer || ""),
+        ua: String(value.ua || ""),
+        platform: String(value.platform || ""),
+        language: String(value.language || ""),
+        timezone: String(value.timezone || ""),
+        screen: String(value.screen || ""),
+        viewport: String(value.viewport || ""),
+        touch: !!value.touch,
+        webdriver: !!value.webdriver,
+        suspicious: Math.max(0, Number(value.suspicious || 0) || 0),
+        botSignals: Array.isArray(value.botSignals) ? value.botSignals.map(x => String(x)) : [],
+        lastEvent: String(value.lastEvent || ""),
+        lastSummary: String(value.lastSummary || ""),
+        notes: Array.isArray(value.notes) ? value.notes.map(x => String(x)) : [],
+      };
+    });
+
+    const events = Array.isArray(base.events) ? base.events.map((ev) => ({
+      id: String(ev && ev.id || makeRuntimeId("audit")),
+      ts: Number(ev && ev.ts || Date.now()) || Date.now(),
+      scope: String(ev && ev.scope || "system"),
+      area: String(ev && ev.area || "admin"),
+      action: String(ev && ev.action || "event"),
+      summary: String(ev && ev.summary || ""),
+      sessionId: String(ev && ev.sessionId || ""),
+      deviceId: String(ev && ev.deviceId || ""),
+      details: (ev && typeof ev.details === "object" && ev.details) ? ev.details : {},
+    })) : [];
+
+    events.sort((a,b) => Number(b.ts || 0) - Number(a.ts || 0));
+    return {
+      users,
+      events,
+      _meta: {
+        rev: Number(base._meta && base._meta.rev || 0) || 0,
+        updatedAt: String(base._meta && base._meta.updatedAt || "")
+      }
+    };
+  }
+
+  function mergeAuditUser(prev, next){
+    const base = prev && typeof prev === "object" ? prev : {};
+    const incoming = next && typeof next === "object" ? next : {};
+    const botSignals = Array.from(new Set([...(Array.isArray(base.botSignals) ? base.botSignals : []), ...(Array.isArray(incoming.botSignals) ? incoming.botSignals : [])].filter(Boolean))).slice(0, 20);
+    const notes = Array.from(new Set([...(Array.isArray(base.notes) ? base.notes : []), ...(Array.isArray(incoming.notes) ? incoming.notes : [])].filter(Boolean))).slice(0, 20);
+    return {
+      key: String(incoming.key || base.key || incoming.deviceId || base.deviceId || makeRuntimeId("user")),
+      area: String(incoming.area || base.area || "unknown"),
+      label: String(incoming.label || base.label || incoming.area || base.area || "unknown"),
+      deviceId: String(incoming.deviceId || base.deviceId || incoming.key || base.key || ""),
+      sessionId: String(incoming.sessionId || base.sessionId || ""),
+      firstSeen: Number(base.firstSeen || incoming.firstSeen || Date.now()) || Date.now(),
+      lastSeen: Math.max(Number(base.lastSeen || 0) || 0, Number(incoming.lastSeen || 0) || 0, Date.now()),
+      sessions: Math.max(1, Number(base.sessions || 1) || 1, Number(incoming.sessions || 1) || 1),
+      views: Math.max(0, Number(base.views || 0) || 0) + Math.max(0, Number(incoming.viewsIncrement || 0) || 0),
+      actions: Math.max(0, Number(base.actions || 0) || 0) + Math.max(0, Number(incoming.actionsIncrement || 0) || 0),
+      lastPage: String(incoming.lastPage || base.lastPage || ""),
+      referrer: String(incoming.referrer || base.referrer || ""),
+      ua: String(incoming.ua || base.ua || ""),
+      platform: String(incoming.platform || base.platform || ""),
+      language: String(incoming.language || base.language || ""),
+      timezone: String(incoming.timezone || base.timezone || ""),
+      screen: String(incoming.screen || base.screen || ""),
+      viewport: String(incoming.viewport || base.viewport || ""),
+      touch: (incoming.touch === undefined) ? !!base.touch : !!incoming.touch,
+      webdriver: (incoming.webdriver === undefined) ? !!base.webdriver : !!incoming.webdriver,
+      suspicious: Math.max(0, Number(base.suspicious || 0) || 0, Number(incoming.suspicious || 0) || 0),
+      botSignals,
+      lastEvent: String(incoming.lastEvent || base.lastEvent || ""),
+      lastSummary: String(incoming.lastSummary || base.lastSummary || ""),
+      notes,
+    };
+  }
+
+  function currentClientProfile(area="admin"){
+    const nav = globalThis.navigator || {};
+    const loc = globalThis.location || {};
+    const screenObj = globalThis.screen || {};
+    const viewport = `${globalThis.innerWidth || 0}x${globalThis.innerHeight || 0}`;
+    const screenSize = `${screenObj.width || 0}x${screenObj.height || 0}`;
+    const botSignals = [];
+    if(nav.webdriver) botSignals.push("webdriver");
+    if(Number(nav.maxTouchPoints || 0) > 8) botSignals.push("high-touch");
+    return {
+      key: state.deviceId,
+      label: area === "admin" ? "Admin kliens" : "Publikus kliens",
+      area,
+      deviceId: state.deviceId,
+      sessionId: state.clientId,
+      lastSeen: Date.now(),
+      viewsIncrement: 0,
+      actionsIncrement: 0,
+      lastPage: `${loc.pathname || "/"}${loc.search || ""}`,
+      referrer: String(document.referrer || ""),
+      ua: String(nav.userAgent || ""),
+      platform: String(nav.platform || ""),
+      language: String(nav.language || ""),
+      timezone: (() => { try{ return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; }catch{ return ""; } })(),
+      screen: screenSize,
+      viewport,
+      touch: Number(nav.maxTouchPoints || 0) > 0,
+      webdriver: !!nav.webdriver,
+      suspicious: botSignals.length,
+      botSignals,
+    };
+  }
+
+  function registerAuditUser(profile, { markDirtySave=false } = {}){
+    const incoming = profile && typeof profile === "object" ? profile : currentClientProfile("admin");
+    const key = String(incoming.key || incoming.deviceId || state.deviceId);
+    const prev = state.audit && state.audit.users ? state.audit.users[key] : null;
+    const merged = mergeAuditUser(prev, incoming);
+    if(!state.audit || typeof state.audit !== "object") state.audit = emptyAudit();
+    if(!state.audit.users || typeof state.audit.users !== "object") state.audit.users = {};
+    state.audit.users[key] = merged;
+    state.auditUsersDirty.set(key, merged);
+    if(markDirtySave) markDirty({ audit:true, fast:true });
+    return merged;
+  }
+
+  function logAudit(action, summary, details={}, opts={}){
+    const scope = String(opts.scope || "system");
+    const area = String(opts.area || "admin");
+    const profile = registerAuditUser({ ...currentClientProfile(area), ...(opts.profile || {}), actionsIncrement: scope === "view" ? 0 : 1, lastEvent: String(action || "event"), lastSummary: String(summary || "") });
+    const ev = {
+      id: makeRuntimeId("evt"),
+      ts: Date.now(),
+      scope,
+      area,
+      action: String(action || "event"),
+      summary: String(summary || ""),
+      sessionId: String(profile.sessionId || state.clientId),
+      deviceId: String(profile.deviceId || state.deviceId),
+      details: (details && typeof details === "object") ? details : { value: details }
+    };
+    if(!state.audit || typeof state.audit !== "object") state.audit = emptyAudit();
+    if(!Array.isArray(state.audit.events)) state.audit.events = [];
+    state.audit.events.unshift(ev);
+    if(state.audit.events.length > 2500) state.audit.events.length = 2500;
+    state.auditPendingEvents.push(ev);
+    if(opts.persist !== false){
+      markDirty({ audit:true, fast: opts.fast !== false });
+    }
+    return ev;
+  }
+
+  function fmtDateTime(value){
+    const n = Number(value || 0) || 0;
+    if(!n) return "—";
+    try{ return new Date(n).toLocaleString("hu-HU"); }catch{ return "—"; }
   }
 
   
@@ -192,50 +508,151 @@
     state.productsStructuralDirty = false;
     state.stockDeltaByProduct = new Map();
     state.stockAbsoluteByProduct = new Map();
+    resetDocMutationTracker();
+  }
+
+  function productDocFromAny(raw){
+    const parsed = Array.isArray(raw) ? { categories: [], products: raw, popups: [], _meta: {} } : ((raw && typeof raw === "object") ? raw : emptyDoc());
+    return {
+      categories: Array.isArray(parsed.categories) ? parsed.categories.map(x => clone(x)) : [],
+      products: Array.isArray(parsed.products) ? parsed.products.map(x => clone(x)) : [],
+      popups: Array.isArray(parsed.popups) ? parsed.popups.map(x => clone(x)) : [],
+      _meta: (parsed._meta && typeof parsed._meta === "object") ? clone(parsed._meta) : {}
+    };
   }
 
   async function buildProductsSavePlan(cfg){
-    let docToSave = JSON.parse(JSON.stringify(state.doc || { categories: [], products: [], popups: [] }));
     let sha = state.shas.products;
+    let remoteDoc = emptyDoc();
 
-    const stockOnly = !state.productsStructuralDirty && (state.stockDeltaByProduct.size || state.stockAbsoluteByProduct.size);
-    if(stockOnly){
+    try{
       const latest = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path: "data/products.json" });
       sha = latest.sha || null;
-      const remoteDoc = JSON.parse(latest.content || "{}");
-      docToSave = Array.isArray(remoteDoc) ? { categories: [], products: remoteDoc, popups: [] } : (remoteDoc && typeof remoteDoc === "object" ? remoteDoc : { categories: [], products: [], popups: [] });
-      if(!Array.isArray(docToSave.categories)) docToSave.categories = [];
-      if(!Array.isArray(docToSave.products)) docToSave.products = [];
-      if(!Array.isArray(docToSave.popups)) docToSave.popups = [];
-
-      const pMap = new Map((docToSave.products || []).map(p => [String(p.id || ""), p]).filter(([id]) => id));
-      for(const [pid, abs] of state.stockAbsoluteByProduct.entries()){
-        const p = pMap.get(String(pid));
-        if(!p) continue;
-        p.stock = Math.max(0, Number(abs || 0));
-        if(p.status !== "soon") p.status = p.stock <= 0 ? "out" : ((p.status === "out") ? "ok" : p.status);
-      }
-      for(const [pid, delta] of state.stockDeltaByProduct.entries()){
-        const p = pMap.get(String(pid));
-        if(!p) continue;
-        p.stock = Math.max(0, Number(p.stock || 0) + Number(delta || 0));
-        if(p.status !== "soon") p.status = p.stock <= 0 ? "out" : ((p.status === "out") ? "ok" : p.status);
-      }
+      remoteDoc = productDocFromAny(safeJsonParse(latest.content || "{}", emptyDoc()));
+    }catch(e){
+      if(Number(e?.status || 0) !== 404) throw e;
     }
 
-    docToSave._meta = {
-      ...(docToSave._meta || {}),
+    const localDoc = productDocFromAny(state.doc || emptyDoc());
+    const merged = productDocFromAny(remoteDoc);
+    const m = state.docMutations || createDocMutationTracker();
+
+    const catMap = new Map((merged.categories || []).map(c => [String(c.id || ""), c]).filter(([id]) => id));
+    for(const id of m.categoryDeletes){
+      catMap.delete(String(id));
+    }
+    for(const id of m.categoryUpserts){
+      const next = (localDoc.categories || []).find(c => String(c.id || "") === String(id));
+      if(next) catMap.set(String(id), clone(next));
+    }
+    merged.categories = [...catMap.values()];
+
+    const productMap = new Map((merged.products || []).map(p => [String(p.id || ""), p]).filter(([id]) => id));
+    for(const id of m.productDeletes){
+      productMap.delete(String(id));
+    }
+    for(const id of m.productUpserts){
+      const next = (localDoc.products || []).find(p => String(p.id || "") === String(id));
+      if(next) productMap.set(String(id), clone(next));
+    }
+
+    for(const [pid, abs] of state.stockAbsoluteByProduct.entries()){
+      const p = productMap.get(String(pid));
+      if(!p) continue;
+      p.stock = Math.max(0, Number(abs || 0));
+      if(p.status !== "soon") p.status = p.stock <= 0 ? "out" : ((p.status === "out") ? "ok" : p.status);
+    }
+    for(const [pid, delta] of state.stockDeltaByProduct.entries()){
+      const p = productMap.get(String(pid));
+      if(!p) continue;
+      p.stock = Math.max(0, Number(p.stock || 0) + Number(delta || 0));
+      if(p.status !== "soon") p.status = p.stock <= 0 ? "out" : ((p.status === "out") ? "ok" : p.status);
+    }
+
+    merged.products = [...productMap.values()];
+
+    if(m.popupsDirty){
+      merged.popups = clone(localDoc.popups || []);
+    }
+
+    merged._meta = {
+      ...(merged._meta || {}),
+      ...(m.metaDirty ? { secretAccess: clone(((localDoc._meta || {}).secretAccess || {})) } : {}),
       rev: Date.now(),
       updatedAt: new Date().toISOString(),
     };
 
-    state.doc = docToSave;
+    state.doc = merged;
     normalizeDoc();
 
     return {
-      doc: JSON.parse(JSON.stringify(state.doc || { categories: [], products: [], popups: [] })),
+      doc: clone(state.doc || emptyDoc()),
       sha
     };
+  }
+
+  async function readJsonFileOrFallback(cfg, path, fallback){
+    try{
+      const res = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path });
+      return { sha: res.sha || null, data: safeJsonParse(res.content || "", fallback) };
+    }catch(e){
+      if(Number(e?.status || 0) === 404) return { sha: null, data: clone(fallback) };
+      throw e;
+    }
+  }
+
+  async function buildSalesSavePlan(cfg){
+    const latest = await readJsonFileOrFallback(cfg, "data/sales.json", []);
+    const remote = Array.isArray(latest.data) ? latest.data.map(x => clone(x)) : [];
+    const localMap = new Map((state.sales || []).map(s => [String(s.id || ""), clone(s)]).filter(([id]) => id));
+    const map = new Map(remote.map(s => [String(s && s.id || ""), clone(s)]).filter(([id]) => id));
+    for(const id of state.salesDeletes){ map.delete(String(id)); }
+    for(const id of state.salesUpserts){
+      const next = localMap.get(String(id));
+      if(next) map.set(String(id), next);
+    }
+    return { sales: [...map.values()], sha: latest.sha };
+  }
+
+  async function buildReservationsSavePlan(cfg){
+    const latest = await readJsonFileOrFallback(cfg, "data/reservations.json", []);
+    const remote = Array.isArray(latest.data) ? latest.data.map(x => clone(x)) : [];
+    const localMap = new Map((state.reservations || []).map(r => [String(r.id || ""), clone(r)]).filter(([id]) => id));
+    const map = new Map(remote.map(r => [String(r && r.id || ""), clone(r)]).filter(([id]) => id));
+    for(const id of state.reservationDeletes){ map.delete(String(id)); }
+    for(const id of state.reservationUpserts){
+      const next = localMap.get(String(id));
+      if(next) map.set(String(id), next);
+    }
+    return { reservations: [...map.values()], sha: latest.sha };
+  }
+
+  async function buildAuditSavePlan(cfg){
+    const latest = await readJsonFileOrFallback(cfg, "data/audit.json", emptyAudit());
+    const remote = normalizeAudit(latest.data || emptyAudit());
+
+    const eventsMap = new Map((remote.events || []).map(ev => [String(ev.id || makeRuntimeId("evt")), ev]));
+    for(const ev of (state.auditPendingEvents || [])){
+      if(!ev || !ev.id) continue;
+      eventsMap.set(String(ev.id), clone(ev));
+    }
+    const events = [...eventsMap.values()].sort((a,b) => Number(b.ts || 0) - Number(a.ts || 0)).slice(0, 2500);
+
+    const users = { ...(remote.users || {}) };
+    for(const [key, user] of state.auditUsersDirty.entries()){
+      users[String(key)] = mergeAuditUser(users[String(key)], user);
+    }
+
+    const audit = {
+      users,
+      events,
+      _meta: {
+        rev: Date.now(),
+        updatedAt: new Date().toISOString(),
+      }
+    };
+    state.audit = normalizeAudit(audit);
+    return { audit: clone(state.audit), sha: latest.sha };
   }
 
   function rerenderWithInputState(selector, renderFn){
@@ -550,6 +967,20 @@
           }
         }
 
+        let a = null;
+        let audit = emptyAudit();
+        try{
+          a = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: br, path: "data/audit.json" });
+          audit = normalizeAudit(safeJsonParse(a.content || "{}", emptyAudit()));
+        }catch(e){
+          if(Number(e?.status || 0) === 404){
+            a = { sha: null };
+            audit = emptyAudit();
+          }else{
+            throw e;
+          }
+        }
+
         const doc = JSON.parse(p.content);
 
         cfg.branch = br;
@@ -558,14 +989,21 @@
         state.doc = doc;
         state.sales = sales;
         state.reservations = normalizeReservations(reservations);
+        state.audit = audit;
         state.shas.products = p.sha;
         state.shas.sales = s ? (s.sha || null) : null;
         state.shas.reservations = r ? (r.sha || null) : null;
+        state.shas.audit = a ? (a.sha || null) : null;
         normalizeDoc();
         initChartFilters(true);
         state.loaded = true;
         state.forceSourceSync = true;
         resetStockMergeState();
+        resetSalesMutationTracker();
+        resetReservationMutationTracker();
+        state.auditPendingEvents = [];
+        state.auditUsersDirty = new Map();
+        registerAuditUser({ ...currentClientProfile("admin"), viewsIncrement: 1, lastEvent: "admin_load", lastSummary: "Admin betöltés" });
 
         return { ok:true };
       }catch(e){
@@ -589,9 +1027,11 @@
     if(!r.ok){
       console.error(r.err);
       setSaveStatus("bad", "Betöltés hiba: " + String(r.err?.message || ""));
+      try{ logAudit("admin_load_error", "Admin betöltési hiba", { message: String(r.err?.message || r.err || "") }, { scope:"system", fast:false }); }catch{}
       return;
     }
 
+    try{ logAudit("admin_load", "Admin adatok betöltve", { branch: cfg.branch || "main" }, { scope:"system", fast:false }); }catch{}
     setSaveStatus("ok","Kész");
     renderAll();
   }
@@ -599,13 +1039,11 @@
   async function saveDataNow(){
     if(!state.loaded) return;
 
-    // ✅ MENTÉS GYORSÍTÁS: Csak akkor mentünk, ha tényleges változás van
-    if (!state.dirtyProducts && !state.dirtySales && !state.dirtyReservations) {
+    if (!state.dirtyProducts && !state.dirtySales && !state.dirtyReservations && !state.dirtyAudit) {
       setSaveStatus("ok","Nincs változás");
       return;
     }
 
-    // Ne fusson párhuzamos mentés (különben SHA mismatch)
     if(state.saving){
       state.saveQueued = true;
       state.dirty = true;
@@ -620,7 +1058,6 @@
       return;
     }
 
-    // ugyanazon böngészőben: csak 1 admin tab mentsen
     if(!acquireLock()){
       state.saveQueued = true;
       state.dirty = true;
@@ -635,165 +1072,140 @@
     setSaveStatus("busy","Mentés...");
 
     await syncSecretSettingsFromPanel();
-
-    // biztos rend
     normalizeDoc();
 
     for(const p of (state.doc.products||[])){
       if(p && p.status === "out") p.stock = 0;
       if(p && (!p.name_en || String(p.name_en).trim()==="")) p.name_en = p.name_hu || "";
     }
-    let productsDocForSave = JSON.parse(JSON.stringify(state.doc || { categories: [], products: [], popups: [] }));
-    let productsShaForSave = state.shas.products;
-    if(state.dirtyProducts){
-      const plan = await buildProductsSavePlan(cfg);
-      productsDocForSave = plan.doc;
-      productsShaForSave = plan.sha;
-    }
 
-    const productsText = JSON.stringify(productsDocForSave, null, 2);
-    const salesText = JSON.stringify(state.sales, null, 2);
-    const reservationsText = JSON.stringify(state.reservations, null, 2);
+    let ok = false;
+    const wantProducts = !!state.dirtyProducts;
+    const wantSales = !!state.dirtySales;
+    const wantReservations = !!state.dirtyReservations;
+    const wantAudit = !!state.dirtyAudit;
 
-    
-let ok = false;
-const wantProducts = !!state.dirtyProducts;
-const wantSales = !!state.dirtySales;
-const wantReservations = !!state.dirtyReservations;
-
-try{
-  // SHA csak akkor kell, ha még nincs meg (a putFileSafe úgyis frissít konflikt esetén)
-  if(wantProducts && !state.shas.products){
-    // refresh sha, ha nincs
-    const pOld = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path: "data/products.json" });
-    state.shas.products = pOld.sha;
-  }
-
-  if(wantSales && !state.shas.sales){
     try{
-      const sOld = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path: "data/sales.json" });
-      state.shas.sales = sOld.sha;
-    }catch(e){
-      if(Number(e?.status || 0) === 404) state.shas.sales = null;
-      else throw e;
-    }
-  }
-
-  if(wantReservations && !state.shas.reservations){
-    try{
-      const rOld = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path: "data/reservations.json" });
-      state.shas.reservations = rOld.sha;
-    }catch(e){
-      if(Number(e?.status || 0) === 404) state.shas.reservations = null;
-      else throw e;
-    }
-  }
-
-  const tasks = [];
-
-  if(wantProducts){
-    tasks.push(
-      ShadowGH.putFileSafe({
-        token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
-        path: "data/products.json",
-        message: "Update products.json",
-        content: productsText,
-        sha: productsShaForSave
-      }).then((pRes) => {
-        state.shas.products = pRes?.content?.sha || productsShaForSave || state.shas.products;
-      })
-    );
-  }
-
-  if(wantSales){
-    tasks.push(
-      ShadowGH.putFileSafe({
-        token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
-        path: "data/sales.json",
-        message: "Update sales.json",
-        content: salesText,
-        sha: state.shas.sales
-      }).then((sRes) => {
-        state.shas.sales = sRes?.content?.sha || state.shas.sales;
-      })
-    );
-  }
-
-if(wantReservations){
-    tasks.push(
-      ShadowGH.putFileSafe({
-        token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
-        path: "data/reservations.json",
-        message: "Update reservations.json",
-        content: reservationsText,
-        sha: state.shas.reservations
-      }).then((rRes) => {
-        state.shas.reservations = rRes?.content?.sha || state.shas.reservations;
-      })
-    );
-  }
-
-
-
-  // ✅ sv_source.json (custom domain + telefon): a public oldal ebből találja meg a RAW forrást
-  try{
-    const srcObj = { owner: cfg.owner, repo: cfg.repo, branch: cfg.branch };
-    if(cfg.resApi) srcObj.reserveApi = cfg.resApi;
-    const srcText = JSON.stringify(srcObj, null, 2);
-    const prev = localStorage.getItem("sv_source_json") || "";
-    if(state.forceSourceSync || prev !== srcText){
-      state.forceSourceSync = false;
-      try{ localStorage.setItem("sv_source_json", srcText); }catch{}
-      tasks.push(
-        ShadowGH.putFileSafe({
+      if(wantProducts){
+        let plan = await buildProductsSavePlan(cfg);
+        let textOut = JSON.stringify(plan.doc, null, 2);
+        const pRes = await ShadowGH.putFileSafe({
           token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
-          path: "data/sv_source.json",
-          message: "Update sv_source.json",
-          content: srcText
-        })
-      );
-    }
-  }catch{}
+          path: "data/products.json",
+          message: "Update products.json",
+          content: textOut,
+          sha: plan.sha,
+          onConflict: async () => {
+            plan = await buildProductsSavePlan(cfg);
+            textOut = JSON.stringify(plan.doc, null, 2);
+            return { content: textOut, sha: plan.sha };
+          }
+        });
+        state.shas.products = pRes?.content?.sha || plan.sha || state.shas.products;
+      }
 
-  // ha nincs mit menteni, ne üssük a GH-t
-  if(!tasks.length){
-    ok = true;
-    setSaveStatus("ok","Nincs változás");
-    return;
-  }
+      if(wantSales){
+        let plan = await buildSalesSavePlan(cfg);
+        let textOut = JSON.stringify(plan.sales, null, 2);
+        const sRes = await ShadowGH.putFileSafe({
+          token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
+          path: "data/sales.json",
+          message: "Update sales.json",
+          content: textOut,
+          sha: plan.sha,
+          onConflict: async () => {
+            plan = await buildSalesSavePlan(cfg);
+            textOut = JSON.stringify(plan.sales, null, 2);
+            return { content: textOut, sha: plan.sha };
+          }
+        });
+        state.shas.sales = sRes?.content?.sha || plan.sha || state.shas.sales;
+      }
 
-  await Promise.all(tasks);
-  ok = true;
+      if(wantReservations){
+        let plan = await buildReservationsSavePlan(cfg);
+        let textOut = JSON.stringify(plan.reservations, null, 2);
+        const rRes = await ShadowGH.putFileSafe({
+          token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
+          path: "data/reservations.json",
+          message: "Update reservations.json",
+          content: textOut,
+          sha: plan.sha,
+          onConflict: async () => {
+            plan = await buildReservationsSavePlan(cfg);
+            textOut = JSON.stringify(plan.reservations, null, 2);
+            return { content: textOut, sha: plan.sha };
+          }
+        });
+        state.shas.reservations = rRes?.content?.sha || plan.sha || state.shas.reservations;
+      }
 
-  // ✅ azonnali update a katalógus tabnak (ha nyitva van ugyanabban a böngészőben)
-  try{
-    const payload = { doc: state.doc, sales: state.sales, reservations: state.reservations, ts: Date.now() };
-    localStorage.setItem("sv_live_payload", JSON.stringify(payload));
-    try{ new BroadcastChannel("sv_live").postMessage(payload); }catch{}
-  }catch{}
+      if(wantAudit){
+        let plan = await buildAuditSavePlan(cfg);
+        let textOut = JSON.stringify(plan.audit, null, 2);
+        const aRes = await ShadowGH.putFileSafe({
+          token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
+          path: "data/audit.json",
+          message: "Update audit.json",
+          content: textOut,
+          sha: plan.sha,
+          onConflict: async () => {
+            plan = await buildAuditSavePlan(cfg);
+            textOut = JSON.stringify(plan.audit, null, 2);
+            return { content: textOut, sha: plan.sha };
+          }
+        });
+        state.shas.audit = aRes?.content?.sha || plan.sha || state.shas.audit;
+      }
 
-  // ✅ ne reloadoljunk minden autosave után (lassú) — a state már friss
-  state.doc = productsDocForSave;
-  resetStockMergeState();
-  state.dirtyProducts = false;
-  state.dirtySales = false;
-  state.dirtyReservations = false;
+      try{
+        const srcObj = { owner: cfg.owner, repo: cfg.repo, branch: cfg.branch };
+        if(cfg.resApi) srcObj.reserveApi = cfg.resApi;
+        const srcText = JSON.stringify(srcObj, null, 2);
+        const prev = localStorage.getItem("sv_source_json") || "";
+        if(state.forceSourceSync || prev !== srcText){
+          state.forceSourceSync = false;
+          try{ localStorage.setItem("sv_source_json", srcText); }catch{}
+          await ShadowGH.putFileSafe({
+            token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
+            path: "data/sv_source.json",
+            message: "Update sv_source.json",
+            content: srcText
+          });
+        }
+      }catch{}
 
-  try{
-    const secretPassEl = $("#cfgSecretPassword");
-    if(secretPassEl) secretPassEl.value = "";
-  }catch{}
-  setSaveStatus("ok","Mentve ✅");
-}catch(e){
+      ok = true;
+
+      try{
+        const payload = { doc: state.doc, sales: state.sales, reservations: state.reservations, ts: Date.now() };
+        localStorage.setItem("sv_live_payload", JSON.stringify(payload));
+        try{ new BroadcastChannel("sv_live").postMessage(payload); }catch{}
+      }catch{}
+
+      resetStockMergeState();
+      resetSalesMutationTracker();
+      resetReservationMutationTracker();
+      state.auditPendingEvents = [];
+      state.auditUsersDirty = new Map();
+      state.dirtyProducts = false;
+      state.dirtySales = false;
+      state.dirtyReservations = false;
+      state.dirtyAudit = false;
+
+      try{
+        const secretPassEl = $("#cfgSecretPassword");
+        if(secretPassEl) secretPassEl.value = "";
+      }catch{}
+      setSaveStatus("ok","Mentve ✅");
+    }catch(e){
       console.error(e);
       setSaveStatus("bad", `Mentés hiba: ${String(e?.message || e)}`);
-      // hagyjuk dirty-n, de nem loopolunk végtelenbe
       state.dirty = true;
+      try{ logAudit("save_error", "Mentési hiba", { message: String(e?.message || e || "") }, { scope:"system", fast:false, persist:false }); }catch{}
     }finally{
       state.saving = false;
       releaseLock();
-
-      // Ha mentés közben jött új változás, és ez a mentés OK volt, futtassuk le még egyszer
       if(ok && (state.saveQueued || state.dirty)){
         state.saveQueued = false;
         if(state.saveTimer) clearTimeout(state.saveTimer);
@@ -801,6 +1213,7 @@ if(wantReservations){
       }
     }
   }
+
 
 
 function markDirty(flags){
@@ -811,6 +1224,7 @@ function markDirty(flags){
   }
   if(f.sales) state.dirtySales = true;
   if(f.reservations) state.dirtyReservations = true;
+  if(f.audit) state.dirtyAudit = true;
   queueAutoSave(f.fast ? 250 : null);
 }
 
@@ -839,16 +1253,120 @@ function markDirty(flags){
       b.classList.add("active");
 
       const tab = b.dataset.tab;
+      state.activeTab = tab;
       $("#panelProducts").style.display = tab === "products" ? "block" : "none";
       $("#panelCategories").style.display = tab === "categories" ? "block" : "none";
       $("#panelSales").style.display = tab === "sales" ? "block" : "none";
       $("#panelChart").style.display = tab === "chart" ? "block" : "none";
       $("#panelPopups").style.display = tab === "popups" ? "block" : "none";
       $("#panelSettings").style.display = tab === "settings" ? "block" : "none";
+      $("#panelUsers").style.display = tab === "users" ? "block" : "none";
+      $("#panelHistory").style.display = tab === "history" ? "block" : "none";
 
       if(tab === "chart") drawChart();
       if(tab === "popups") renderPopups();
+      if(tab === "users") renderUsers();
+      if(tab === "history") renderHistory();
+      try{ logAudit("tab_change", `Admin fül váltás: ${tab}`, { tab }, { scope:"view", fast:true }); }catch{}
     };
+  }
+
+  function renderUsers(){
+    const panel = $("#panelUsers");
+    if(!panel) return;
+    const q = String(state.filters.usersSearch || "").trim().toLowerCase();
+    let list = Object.values((state.audit && state.audit.users) ? state.audit.users : {});
+    list.sort((a,b) => Number(b.lastSeen || 0) - Number(a.lastSeen || 0));
+    if(q){
+      list = list.filter(u => (`${u.label} ${u.area} ${u.ua} ${u.platform} ${u.language} ${u.timezone} ${u.referrer} ${u.lastPage} ${(u.botSignals||[]).join(' ')}`).toLowerCase().includes(q));
+    }
+
+    panel.innerHTML = `
+      <div class="actions table" style="align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <div style="font-weight:900;">Users</div>
+          <div class="small-muted">Központilag látott kliensek és technikai jelek. Bot/troll szűréshez.</div>
+        </div>
+        <input id="usersSearch" placeholder="Keresés user agent / oldal / referrer / jel alapján..." value="${escapeHtml(state.filters.usersSearch || "")}" style="flex:1;min-width:260px;max-width:520px;">
+      </div>
+      <div class="small-muted" style="margin-top:8px;">Találat: <b>${list.length}</b> kliens</div>
+      <div style="margin-top:12px;display:grid;gap:10px;">
+        ${list.length ? list.map(u => `
+          <div class="rowline table" style="align-items:flex-start;">
+            <div class="left">
+              <div style="font-weight:900;">${escapeHtml(u.label || u.area || "Kliens")}</div>
+              <div class="small-muted">Terület: <b>${escapeHtml(u.area || "—")}</b> • Utolsó oldal: <b>${escapeHtml(u.lastPage || "—")}</b></div>
+              <div class="small-muted">Első látás: <b>${escapeHtml(fmtDateTime(u.firstSeen))}</b> • Utolsó aktivitás: <b>${escapeHtml(fmtDateTime(u.lastSeen))}</b></div>
+              <div class="small-muted">Sessions: <b>${Number(u.sessions || 0)}</b> • Viewk: <b>${Number(u.views || 0)}</b> • Akciók: <b>${Number(u.actions || 0)}</b> • Gyanú pont: <b>${Number(u.suspicious || 0)}</b></div>
+              <div class="small-muted">Nyelv / TZ: <b>${escapeHtml(u.language || "—")}</b> / <b>${escapeHtml(u.timezone || "—")}</b> • Platform: <b>${escapeHtml(u.platform || "—")}</b></div>
+              <div class="small-muted">Képernyő / viewport: <b>${escapeHtml(u.screen || "—")}</b> / <b>${escapeHtml(u.viewport || "—")}</b> • Touch: <b>${u.touch ? "igen" : "nem"}</b> • Webdriver: <b>${u.webdriver ? "igen" : "nem"}</b></div>
+              <div class="small-muted">Referrer: <b>${escapeHtml(u.referrer || "—")}</b></div>
+              <div class="small-muted">Bot jelek: <b>${escapeHtml((u.botSignals || []).join(", ") || "—")}</b></div>
+              <div class="small-muted" style="word-break:break-word;">UA: <b>${escapeHtml(u.ua || "—")}</b></div>
+            </div>
+          </div>
+        `).join("") : `<div class="small-muted">Még nincs központilag mentett user adat.</div>`}
+      </div>
+    `;
+
+    const searchEl = $("#usersSearch");
+    if(searchEl){
+      searchEl.oninput = () => {
+        state.filters.usersSearch = searchEl.value;
+        rerenderWithInputState("#usersSearch", renderUsers);
+      };
+    }
+  }
+
+  function renderHistory(){
+    const panel = $("#panelHistory");
+    if(!panel) return;
+    const q = String(state.filters.historySearch || "").trim().toLowerCase();
+    const type = String(state.filters.historyType || "all");
+    let list = Array.isArray(state.audit && state.audit.events) ? [...state.audit.events] : [];
+    if(type !== "all") list = list.filter(ev => String(ev.scope || "") === type || String(ev.action || "") === type || String(ev.area || "") === type);
+    if(q) list = list.filter(ev => (`${ev.summary} ${ev.action} ${ev.scope} ${ev.area} ${JSON.stringify(ev.details || {})}`).toLowerCase().includes(q));
+    list.sort((a,b) => Number(b.ts || 0) - Number(a.ts || 0));
+
+    panel.innerHTML = `
+      <div class="actions table" style="align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <div style="font-weight:900;">Előzmények</div>
+          <div class="small-muted">Részletes audit napló a fontosabb admin / user / rendszer eseményekről.</div>
+        </div>
+        <select id="historyType" style="width:220px;">
+          ${["all","admin","public","system","view","change","security"].map(x => `<option value="${escapeHtml(x)}"${x===type?" selected":""}>${escapeHtml(x)}</option>`).join("")}
+        </select>
+        <input id="historySearch" placeholder="Keresés összefoglaló / action / részlet alapján..." value="${escapeHtml(state.filters.historySearch || "")}" style="flex:1;min-width:260px;max-width:520px;">
+      </div>
+      <div class="small-muted" style="margin-top:8px;">Találat: <b>${list.length}</b> esemény</div>
+      <div style="margin-top:12px;display:grid;gap:10px;">
+        ${list.length ? list.slice(0, 800).map(ev => `
+          <div class="rowline table" style="align-items:flex-start;">
+            <div class="left">
+              <div style="font-weight:900;">${escapeHtml(ev.summary || ev.action || "Esemény")}</div>
+              <div class="small-muted">${escapeHtml(fmtDateTime(ev.ts))} • scope: <b>${escapeHtml(ev.scope || "—")}</b> • area: <b>${escapeHtml(ev.area || "—")}</b> • action: <b>${escapeHtml(ev.action || "—")}</b></div>
+              <div class="small-muted" style="word-break:break-word;">${escapeHtml(JSON.stringify(ev.details || {}))}</div>
+            </div>
+          </div>
+        `).join("") : `<div class="small-muted">Még nincs audit esemény.</div>`}
+      </div>
+    `;
+
+    const searchEl = $("#historySearch");
+    if(searchEl){
+      searchEl.oninput = () => {
+        state.filters.historySearch = searchEl.value;
+        rerenderWithInputState("#historySearch", renderHistory);
+      };
+    }
+    const typeEl = $("#historyType");
+    if(typeEl){
+      typeEl.onchange = () => {
+        state.filters.historyType = typeEl.value;
+        renderHistory();
+      };
+    }
   }
 
   function renderSettings(){
@@ -905,8 +1423,8 @@ function markDirty(flags){
       </div>
     `;
 
-    $("#btnLoad").onclick = loadData;
-    $("#btnSave").onclick = saveDataNow;
+    $("#btnLoad").onclick = () => { try{ logAudit("manual_load", "Kézi betöltés indítva", {}, { scope:"admin", fast:true }); }catch{} loadData(); };
+    $("#btnSave").onclick = () => { try{ logAudit("manual_save", "Kézi mentés indítva", {}, { scope:"admin", fast:true }); }catch{} saveDataNow(); };
 
     try{
       const basePath = location.pathname.replace(/\/admin\.html.*$/,"/");
@@ -925,17 +1443,22 @@ function markDirty(flags){
         try{
           await navigator.clipboard.writeText(link);
           setSaveStatus("ok","Sync link másolva ✅");
+          try{ logAudit("copy_sync_link", "Sync link másolva", { link }, { scope:"admin", fast:true }); }catch{}
         }catch{
           try{
             inp.select();
             document.execCommand("copy");
             setSaveStatus("ok","Sync link másolva ✅");
+            try{ logAudit("copy_sync_link", "Sync link másolva", { link }, { scope:"admin", fast:true }); }catch{}
           }catch{}
         }
       };
     }catch{}
     ["cfgOwner","cfgRepo","cfgBranch","cfgToken","cfgResApi"].forEach(id => {
-      $("#"+id).addEventListener("input", () => saveCfg(getCfg()));
+      $("#"+id).addEventListener("input", () => {
+        saveCfg(getCfg());
+        try{ logAudit("settings_input", `Beállítás módosítva: ${id}`, { field:id }, { scope:"admin", fast:true }); }catch{}
+      });
     });
 
     try{
@@ -947,6 +1470,7 @@ function markDirty(flags){
           const ms = Math.max(200, Math.min(2000, Number(sel.value || 700)));
           localStorage.setItem("sv_autosave_ms", String(ms));
           setSaveStatus("ok","Auto-mentés beállítva ✅");
+          try{ logAudit("autosave_change", "Auto-mentés késleltetés módosítva", { ms }, { scope:"admin", fast:true }); }catch{}
         };
       }
     }catch{}
@@ -956,6 +1480,8 @@ function markDirty(flags){
       secretMinutesEl.addEventListener("input", () => {
         const sa = ensureSecretAccessMeta();
         sa.durationMs = Math.max(60_000, (Math.max(1, Number(secretMinutesEl.value || 60) || 60) * 60_000));
+        trackMetaDirty();
+        try{ logAudit("secret_duration_change", "Titkos hozzáférés ideje módosítva", { minutes: Math.max(1, Number(secretMinutesEl.value || 60) || 60) }, { scope:"security", fast:true }); }catch{}
         markDirty({ products:true, fast:true });
       });
     }
@@ -963,7 +1489,11 @@ function markDirty(flags){
     const secretPassEl = $("#cfgSecretPassword");
     if(secretPassEl){
       secretPassEl.addEventListener("change", () => {
-        if(String(secretPassEl.value || "").trim()) markDirty({ products:true });
+        if(String(secretPassEl.value || "").trim()){
+          trackMetaDirty();
+          try{ logAudit("secret_password_change", "Titkos jelszó módosítás előkészítve", { hasValue:true }, { scope:"security", fast:false }); }catch{}
+          markDirty({ products:true });
+        }
       });
     }
   }
@@ -1025,6 +1555,8 @@ function markDirty(flags){
             featuredEnabled: true,
             secret: false
           });
+          trackCategoryUpsert(id);
+          try{ logAudit("category_create", `Új kategória: ${id}`, { id, label_hu: hu, basePrice: bp }, { scope:"change", fast:true }); }catch{}
           closeModal();
           renderAll();
           markDirty({ products:true });
@@ -1038,11 +1570,14 @@ function markDirty(flags){
         const k = inp.dataset.k;
         const c = catById(id);
         if(!c) return;
+        const prevVal = clone(c[k]);
         if(k === "basePrice") c.basePrice = Math.max(0, Number(inp.value||0));
         else if(k === "visible") c.visible = !!inp.checked;
         else if(k === "secret") c.secret = !!inp.checked;
         else if(k === "featuredEnabled") c.featuredEnabled = !!inp.checked;
         else c[k] = inp.value;
+        trackCategoryUpsert(id);
+        try{ logAudit("category_update", `Kategória módosítva: ${id}`, { id, field:k, before: prevVal, after: clone(c[k]) }, { scope: (k === "secret" ? "security" : "change"), fast:true }); }catch{}
 
         const fast = (k === "visible" || k === "secret" || k === "featuredEnabled");
         if(fast){
@@ -1064,6 +1599,8 @@ function markDirty(flags){
         const id = btn.dataset.delcat;
         if(state.doc.products.some(p => p.categoryId === id)) return;
         state.doc.categories = state.doc.categories.filter(c => c.id !== id);
+        trackCategoryDelete(id);
+        try{ logAudit("category_delete", `Kategória törölve: ${id}`, { id }, { scope:"change", fast:true }); }catch{}
         renderAll();
         markDirty({ products:true });
       };
@@ -1095,11 +1632,17 @@ function markDirty(flags){
 
         // update category
         c.id = newId;
+        trackCategoryDelete(oldId);
+        trackCategoryUpsert(newId);
 
         // update products pointing to it
         for(const p of (state.doc.products || [])){
-          if(String(p.categoryId) === oldId) p.categoryId = newId;
+          if(String(p.categoryId) === oldId){
+            p.categoryId = newId;
+            trackProductUpsert(p.id);
+          }
         }
+        try{ logAudit("category_rename", `Kategória átnevezve: ${oldId} → ${newId}`, { from: oldId, to: newId }, { scope:"change", fast:true }); }catch{}
 
         closeModal();
         renderAll();
@@ -1199,9 +1742,12 @@ function renderProducts(){
         const p = prodById(pid);
         if(!p) return;
 
+        const before = clone(p[k]);
         if(k === "stock"){
+          const prevStock = Number(p.stock || 0);
           p.stock = setProductStockValue(pid, el.value, { absolute:true });
           if(p.stock <= 0 && p.status !== "soon") p.status = "out";
+          try{ logAudit("product_stock", `Készlet módosítva: ${pid}`, { id: pid, before: prevStock, after: Number(p.stock || 0) }, { scope:"change", fast:true }); }catch{}
           markDirty({ products:true, stockOnly:true, fast:true });
           return;
         }else if(k === "price"){
@@ -1216,6 +1762,8 @@ function renderProducts(){
         }else if(k === "secret"){
           p.secret = !!el.checked;
         }
+        trackProductUpsert(pid);
+        try{ logAudit("product_update", `Termék módosítva: ${pid}`, { id: pid, field: k, before, after: clone(p[k]) }, { scope: (k === "secret" ? "security" : "change"), fast:true }); }catch{}
 
         const fast = (k === "status" || k === "categoryId" || k === "visible" || k === "secret");
         if(fast){
@@ -1238,6 +1786,8 @@ function renderProducts(){
         const id = b.dataset.del;
         if(state.sales.some(s => s.items.some(it => it.productId === id))) return;
         state.doc.products = state.doc.products.filter(p => p.id !== id);
+        trackProductDelete(id);
+        try{ logAudit("product_delete", `Termék törölve: ${id}`, { id }, { scope:"change", fast:true }); }catch{}
         renderAll();
         markDirty({ products:true });
       };
@@ -1321,8 +1871,12 @@ function renderProducts(){
 
         if(editing){
           Object.assign(editing, np);
+          trackProductUpsert(editing.id);
+          try{ logAudit("product_edit", `Termék szerkesztve: ${editing.id}`, { id: editing.id, categoryId: np.categoryId, status: np.status, stock: np.stock }, { scope:"change", fast:true }); }catch{}
         }else{
           state.doc.products.push(np);
+          trackProductUpsert(np.id);
+          try{ logAudit("product_create", `Új termék: ${np.id}`, { id: np.id, categoryId: np.categoryId, status: np.status, stock: np.stock }, { scope:"change", fast:true }); }catch{}
         }
         closeModal();
         renderAll();
@@ -1689,23 +2243,30 @@ function openProductPicker(opts = {}){
           }
         }
 
+        let saleId = editingSale ? String(editingSale.id) : ("s_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16));
         if(editingSale){
           editingSale.date = date;
           editingSale.name = name;
           editingSale.payment = payment;
           editingSale.items = items;
+          trackSaleUpsert(saleId);
+          try{ logAudit("sale_edit", `Eladás szerkesztve: ${saleId}`, { id: saleId, items: items.length, totalQty: items.reduce((a,it)=>a+Number(it.qty||0),0) }, { scope:"change", fast:true }); }catch{}
         }else{
           state.sales.push({
-            id: "s_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16),
+            id: saleId,
             date,
             name,
             payment,
             items
           });
+          trackSaleUpsert(saleId);
+          try{ logAudit("sale_create", `Új eladás: ${saleId}`, { id: saleId, items: items.length, totalQty: items.reduce((a,it)=>a+Number(it.qty||0),0) }, { scope:"change", fast:true }); }catch{}
         }
 
         if(pre && pre.fromReservationId){
           state.reservations = (state.reservations || []).filter(x => String(x.id) !== String(pre.fromReservationId));
+          trackReservationDelete(pre.fromReservationId);
+          try{ logAudit("reservation_convert_sale", `Foglalás eladássá alakítva: ${pre.fromReservationId}`, { reservationId: pre.fromReservationId, saleId }, { scope:"change", fast:true }); }catch{}
           markDirty({ reservations:true });
         }
 
@@ -1856,7 +2417,10 @@ function openProductPicker(opts = {}){
       return ex > now;
     });
     if(kept.length !== before){
+      const removed = (state.reservations || []).filter(r => r && !kept.some(x => String(x.id) === String(r.id)));
       state.reservations = kept;
+      removed.forEach(r => trackReservationDelete(r.id));
+      try{ if(removed.length) logAudit("reservation_expire", `Lejárt foglalások törölve: ${removed.length} db`, { ids: removed.map(r => r.id) }, { scope:"system", fast:true }); }catch{}
       markDirty({ reservations:true });
       renderAll();
     }
@@ -1888,6 +2452,8 @@ function openProductPicker(opts = {}){
     if(!r) return;
     if(!confirm('Biztos törlöd ezt a foglalást?')) return;
     state.reservations = (state.reservations || []).filter(x => String(x.id) !== String(id));
+    trackReservationDelete(id);
+    try{ logAudit("reservation_delete", `Foglalás törölve: ${id}`, { id }, { scope:"change", fast:true }); }catch{}
     renderAll();
     markDirty({ reservations:true });
   }
@@ -1897,6 +2463,8 @@ function openProductPicker(opts = {}){
     if(!r) return;
     r.confirmed = true;
     r.expiresAt = null;
+    trackReservationUpsert(r.id);
+    try{ logAudit("reservation_confirm", `Foglalás megerősítve: ${id}`, { id }, { scope:"change", fast:true }); }catch{}
     renderAll();
     markDirty({ reservations:true });
   }
@@ -2018,6 +2586,8 @@ const addRow = (pref) => {
         r.items = items;
         r.modified = true;
         r.modifiedAt = Date.now();
+        trackReservationUpsert(r.id);
+        try{ logAudit("reservation_edit", `Foglalás szerkesztve: ${r.id}`, { id: r.id, items: items.length }, { scope:"change", fast:true }); }catch{}
         closeModal();
         renderAll();
         markDirty({ reservations:true });
@@ -2053,6 +2623,8 @@ function deleteSale(id){
     }
 
     state.sales.splice(idx, 1);
+    trackSaleDelete(id);
+    try{ logAudit("sale_delete", `Eladás törölve: ${id}`, { id }, { scope:"change", fast:true }); }catch{}
     renderAll();
     markDirty({ products:true, sales:true, stockOnly:true });
   }
@@ -2260,6 +2832,8 @@ function deleteSale(id){
           updatedAt: Date.now(),
           rev: Date.now()
         };
+        trackPopupsDirty();
+        try{ logAudit("popup_toggle", `Pop-up állapot módosítva: ${id}`, { id, enabled: !!el.checked }, { scope:"change", fast:true }); }catch{}
         markDirty({ products:true, fast:true });
       });
     });
@@ -2277,6 +2851,8 @@ function deleteSale(id){
           { label:"Mégse", kind:"ghost", onClick: closeModal },
           { label:"Törlés", kind:"danger", onClick: () => {
             state.doc.popups = (state.doc.popups || []).filter(x => String(x.id) !== id);
+            trackPopupsDirty();
+            try{ logAudit("popup_delete", `Pop-up törölve: ${id}`, { id }, { scope:"change", fast:true }); }catch{}
             closeModal();
             renderPopups();
             markDirty({ products:true, fast:true });
@@ -2371,9 +2947,12 @@ function deleteSale(id){
         if(!next.id) return;
         if(editing){
           state.doc.popups = (state.doc.popups || []).map(x => String(x.id) === String(editing.id) ? next : x);
+          try{ logAudit("popup_edit", `Pop-up szerkesztve: ${next.id}`, { id: next.id, enabled: next.enabled }, { scope:"change", fast:true }); }catch{}
         }else{
           state.doc.popups = [...(state.doc.popups || []), next];
+          try{ logAudit("popup_create", `Új pop-up: ${next.id}`, { id: next.id, enabled: next.enabled }, { scope:"change", fast:true }); }catch{}
         }
+        trackPopupsDirty();
         closeModal();
         renderPopups();
         markDirty({ products:true });
@@ -2639,13 +3218,20 @@ function deleteSale(id){
     renderSales();
     renderChartPanel();
     renderPopups();
+    renderUsers();
+    renderHistory();
     drawChart();
   }
 
   /* ---------- init ---------- */
   function init(){
     renderTabs();
-    $("#btnReload").onclick = () => location.reload();
+    $("#btnReload").onclick = () => {
+      try{ logAudit("reload", "Admin újratöltés", {}, { scope:"view", fast:true }); }catch{}
+      location.reload();
+    };
+    const historyBtn = $("#btnHistory");
+    if(historyBtn) historyBtn.onclick = () => document.querySelector('#tabs button[data-tab="history"]')?.click();
 
     const modalBg = $("#modalBg");
     const modalCloseBtn = $("#modalCloseBtn");
@@ -2661,6 +3247,8 @@ function deleteSale(id){
 
     // first render panels + inject settings inputs ids
     renderSettings();
+    renderUsers();
+    renderHistory();
 
     // reservation expiry ticker (safe even before load)
     startReservationTicker();

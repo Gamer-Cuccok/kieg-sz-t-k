@@ -1,6 +1,30 @@
 (() => {
   const $ = (s) => document.querySelector(s);
 
+  function makeRuntimeId(prefix="id"){
+    return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,10)}`;
+  }
+
+  function getPersistentId(key, prefix="device"){
+    try{
+      const cur = String(localStorage.getItem(key) || "").trim();
+      if(cur) return cur;
+      const next = makeRuntimeId(prefix);
+      localStorage.setItem(key, next);
+      return next;
+    }catch{
+      return makeRuntimeId(prefix);
+    }
+  }
+
+  function clone(v){
+    return JSON.parse(JSON.stringify(v));
+  }
+
+  function safeJsonParse(text, fallback){
+    try{ return JSON.parse(text); }catch{ return fallback; }
+  }
+
   const state = {
     lang: localStorage.getItem("sv_lang") || "hu",
     active: "all",
@@ -31,9 +55,16 @@
     secretExpiresAt: 0,
     secretExpiryTimer: null,
     searchSeq: 0,
+    deviceId: getPersistentId("sv_public_device_id", "pubdev"),
+    sessionId: makeRuntimeId("pubsess"),
+    telemetryQueue: [],
+    telemetryViewsPending: 0,
+    telemetryActionsPending: 0,
+    telemetryFlushTimer: null,
   };
 
   const SECRET_SESSION_LS_KEY = "sv_secret_session_v1";
+  const TELEMETRY_QUEUE_LS_KEY = "sv_telemetry_queue_v1";
 
   const isAdminMode = (()=>{
     try{ return new URLSearchParams(location.search).get("sv_admin") === "1"; }catch{ return false; }
@@ -71,6 +102,186 @@
     return String(a ?? "").localeCompare(String(b ?? ""), locale(), { numeric: true, sensitivity: "base" });
   }
 
+  function currentTelemetryProfile(area="public"){
+    const nav = globalThis.navigator || {};
+    const screenObj = globalThis.screen || {};
+    const botSignals = [];
+    if(nav.webdriver) botSignals.push("webdriver");
+    if(Number(nav.maxTouchPoints || 0) > 8) botSignals.push("high-touch");
+    return {
+      key: state.deviceId,
+      label: area === "admin" ? "Admin kliens" : "Publikus kliens",
+      area,
+      deviceId: state.deviceId,
+      sessionId: state.sessionId,
+      lastSeen: Date.now(),
+      lastPage: `${location.pathname || "/"}${location.search || ""}`,
+      referrer: String(document.referrer || ""),
+      ua: String(nav.userAgent || ""),
+      platform: String(nav.platform || ""),
+      language: String(nav.language || ""),
+      timezone: (() => { try{ return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; }catch{ return ""; } })(),
+      screen: `${screenObj.width || 0}x${screenObj.height || 0}`,
+      viewport: `${globalThis.innerWidth || 0}x${globalThis.innerHeight || 0}`,
+      touch: Number(nav.maxTouchPoints || 0) > 0,
+      webdriver: !!nav.webdriver,
+      suspicious: botSignals.length,
+      botSignals,
+      viewsIncrement: state.telemetryViewsPending,
+      actionsIncrement: state.telemetryActionsPending,
+      firstSeen: Date.now(),
+      sessions: 1,
+    };
+  }
+
+  function loadTelemetryQueue(){
+    try{
+      const arr = safeJsonParse(localStorage.getItem(TELEMETRY_QUEUE_LS_KEY) || "[]", []);
+      return Array.isArray(arr) ? arr : [];
+    }catch{ return []; }
+  }
+
+  function saveTelemetryQueue(){
+    try{ localStorage.setItem(TELEMETRY_QUEUE_LS_KEY, JSON.stringify(state.telemetryQueue || [])); }catch{}
+  }
+
+  function mergeAuditUser(prev, next){
+    const base = prev && typeof prev === "object" ? prev : {};
+    const incoming = next && typeof next === "object" ? next : {};
+    const botSignals = Array.from(new Set([...(Array.isArray(base.botSignals) ? base.botSignals : []), ...(Array.isArray(incoming.botSignals) ? incoming.botSignals : [])].filter(Boolean))).slice(0, 20);
+    return {
+      key: String(incoming.key || base.key || incoming.deviceId || base.deviceId || state.deviceId),
+      area: String(incoming.area || base.area || "public"),
+      label: String(incoming.label || base.label || "Publikus kliens"),
+      deviceId: String(incoming.deviceId || base.deviceId || state.deviceId),
+      sessionId: String(incoming.sessionId || base.sessionId || state.sessionId),
+      firstSeen: Number(base.firstSeen || incoming.firstSeen || Date.now()) || Date.now(),
+      lastSeen: Math.max(Number(base.lastSeen || 0) || 0, Number(incoming.lastSeen || 0) || 0, Date.now()),
+      sessions: Math.max(1, Number(base.sessions || 1) || 1, Number(incoming.sessions || 1) || 1),
+      views: Math.max(0, Number(base.views || 0) || 0) + Math.max(0, Number(incoming.viewsIncrement || 0) || 0),
+      actions: Math.max(0, Number(base.actions || 0) || 0) + Math.max(0, Number(incoming.actionsIncrement || 0) || 0),
+      lastPage: String(incoming.lastPage || base.lastPage || ""),
+      referrer: String(incoming.referrer || base.referrer || ""),
+      ua: String(incoming.ua || base.ua || ""),
+      platform: String(incoming.platform || base.platform || ""),
+      language: String(incoming.language || base.language || ""),
+      timezone: String(incoming.timezone || base.timezone || ""),
+      screen: String(incoming.screen || base.screen || ""),
+      viewport: String(incoming.viewport || base.viewport || ""),
+      touch: (incoming.touch === undefined) ? !!base.touch : !!incoming.touch,
+      webdriver: (incoming.webdriver === undefined) ? !!base.webdriver : !!incoming.webdriver,
+      suspicious: Math.max(0, Number(base.suspicious || 0) || 0, Number(incoming.suspicious || 0) || 0),
+      botSignals,
+      lastEvent: String(incoming.lastEvent || base.lastEvent || ""),
+      lastSummary: String(incoming.lastSummary || base.lastSummary || ""),
+    };
+  }
+
+  async function writeTelemetryWithGithub(queue){
+    if(!queue.length || !(globalThis.ShadowGH && typeof ShadowGH.getFile === "function" && typeof ShadowGH.putFileSafe === "function")) return false;
+    const cfg = getWriteCfg();
+    if(!cfg) return false;
+
+    const buildPlan = async () => {
+      let sha = null;
+      let remote = { events: [], users: {}, _meta: {} };
+      try{
+        const latest = await ShadowGH.getFile({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, path: "data/audit.json" });
+        sha = latest.sha || null;
+        remote = safeJsonParse(latest.content || "{}", remote) || remote;
+      }catch(e){
+        if(Number(e?.status || 0) !== 404) throw e;
+      }
+      const eventsMap = new Map((Array.isArray(remote.events) ? remote.events : []).map(ev => [String(ev && ev.id || makeRuntimeId("evt")), ev]));
+      for(const ev of queue){
+        if(!ev || !ev.id) continue;
+        eventsMap.set(String(ev.id), clone(ev));
+      }
+      const users = (remote.users && typeof remote.users === "object") ? remote.users : {};
+      const profile = mergeAuditUser(users[state.deviceId], { ...currentTelemetryProfile(isAdminMode ? "admin" : "public"), lastEvent: queue[0]?.action || "page", lastSummary: queue[0]?.summary || "" });
+      users[state.deviceId] = profile;
+      return {
+        sha,
+        content: JSON.stringify({
+          users,
+          events: [...eventsMap.values()].sort((a,b) => Number(b.ts || 0) - Number(a.ts || 0)).slice(0, 2500),
+          _meta: { rev: Date.now(), updatedAt: new Date().toISOString() }
+        }, null, 2)
+      };
+    };
+
+    let plan = await buildPlan();
+    await ShadowGH.putFileSafe({
+      token: cfg.token, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
+      path: "data/audit.json",
+      message: "Update audit.json",
+      content: plan.content,
+      sha: plan.sha,
+      onConflict: async () => {
+        plan = await buildPlan();
+        return { content: plan.content, sha: plan.sha };
+      }
+    });
+    return true;
+  }
+
+  async function flushTelemetry(){
+    if(!state.telemetryQueue.length) return;
+    const queue = [...state.telemetryQueue];
+    try{
+      const api = String(state.reserveApi || localStorage.getItem("sv_res_api") || "").trim();
+      if(api){
+        try{
+          const r = await fetch(api.replace(/\/+$/,''), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "telemetry.batch", events: queue, user: currentTelemetryProfile(isAdminMode ? "admin" : "public") })
+          });
+          if(r.ok){
+            state.telemetryQueue = state.telemetryQueue.filter(ev => !queue.some(q => q.id === ev.id));
+            state.telemetryViewsPending = 0;
+            state.telemetryActionsPending = 0;
+            saveTelemetryQueue();
+            return;
+          }
+        }catch{}
+      }
+      if(await writeTelemetryWithGithub(queue)){
+        state.telemetryQueue = state.telemetryQueue.filter(ev => !queue.some(q => q.id === ev.id));
+        state.telemetryViewsPending = 0;
+        state.telemetryActionsPending = 0;
+        saveTelemetryQueue();
+      }
+    }catch{}
+  }
+
+  function scheduleTelemetryFlush(delay=2500){
+    if(state.telemetryFlushTimer) clearTimeout(state.telemetryFlushTimer);
+    state.telemetryFlushTimer = setTimeout(() => { flushTelemetry().catch(()=>{}); }, delay);
+  }
+
+  function queueTelemetry(action, summary, details={}, opts={}){
+    const area = isAdminMode ? "admin" : "public";
+    const scope = String(opts.scope || area);
+    const ev = {
+      id: makeRuntimeId("evt"),
+      ts: Date.now(),
+      scope,
+      area,
+      action: String(action || "event"),
+      summary: String(summary || ""),
+      sessionId: state.sessionId,
+      deviceId: state.deviceId,
+      details: (details && typeof details === "object") ? details : { value: details }
+    };
+    state.telemetryQueue.push(ev);
+    if(state.telemetryQueue.length > 300) state.telemetryQueue = state.telemetryQueue.slice(-300);
+    if(action === "page_open") state.telemetryViewsPending += 1;
+    else state.telemetryActionsPending += 1;
+    saveTelemetryQueue();
+    scheduleTelemetryFlush(opts.delay || 3000);
+  }
+
   function loadFavorites(){
     try{
       const raw = localStorage.getItem(FAVORITES_LS_KEY);
@@ -98,6 +309,7 @@
     const wasFav = state.favorites.has(pid);
     if(wasFav) state.favorites.delete(pid);
     else state.favorites.add(pid);
+    try{ queueTelemetry(wasFav ? "favorite_remove" : "favorite_add", wasFav ? "Kedvenc törölve" : "Kedvenc hozzáadva", { productId: pid }); }catch{}
     saveFavorites();
     renderNav();
     renderGrid();
@@ -318,6 +530,7 @@
     if(!candidate || !cfg.passwordHash) return false;
     const hash = await sha256Hex(candidate);
     if(String(hash || "").trim().toLowerCase() !== cfg.passwordHash) return false;
+    try{ queueTelemetry("secret_unlock", "Titkos mód feloldva", { via: "search" }, { scope:"security" }); }catch{}
     activateSecretMode(cfg.durationMs);
     return true;
   }
@@ -519,6 +732,7 @@
       }
 
       state.cart.set(pid, cur + 1);
+      try{ queueTelemetry("cart_add", "Termék kosárba helyezve", { productId: pid, qty: cur + 1 }); }catch{}
       saveCart();
       updateCartBadge();
       if(state.cartOpen) renderCart();
@@ -535,6 +749,7 @@
     if(!pid) return;
     if(q <= 0) state.cart.delete(pid);
     else state.cart.set(pid, q);
+    try{ queueTelemetry("cart_qty", "Kosár mennyiség módosítva", { productId: pid, qty: q }); }catch{}
     saveCart();
     updateCartBadge();
     if(state.cartOpen) renderCart();
@@ -1019,6 +1234,7 @@
 
 
       try{
+        queueTelemetry("reservation_success", "Foglalás sikeresen leadva", { reservationId: id, publicCode, itemCount: items.length });
         state.reservations = [...(state.reservations||[]), reservation];
         state.reservationsHash = '';
         rebuildReservedMap();
@@ -2273,6 +2489,7 @@
   function initLang(){
     $("#langBtn").onclick = () => {
       state.lang = state.lang === "hu" ? "en" : "hu";
+      try{ queueTelemetry("lang_switch", "Nyelv váltva", { lang: state.lang }); }catch{}
       localStorage.setItem("sv_lang", state.lang);
       setLangUI();
       renderNav();
@@ -2348,6 +2565,7 @@
   }
 
   async function init() {
+    state.telemetryQueue = loadTelemetryQueue();
     applySyncParams();
     setLangUI();
     initLang();
@@ -2362,6 +2580,7 @@
 
     // load from network (RAW) to be sure
     await loadAll({ forceBust:true });
+    try{ queueTelemetry("page_open", isAdminMode ? "Admin beágyazott nézet megnyitva" : "Publikus oldal megnyitva", { adminMode: isAdminMode, path: `${location.pathname || "/"}${location.search || ""}` }, { delay: 1500 }); }catch{}
     syncSecretSessionWithDoc({ rerender:false });
 
     renderNav();
@@ -2420,9 +2639,13 @@
     };
 
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) loadAll({ forceBust:true }).then((changed)=>{ if(changed){ renderNav(); renderGrid(); } if(!isAdminMode) setTimeout(() => showPopupsIfNeeded(), 100); }).catch(()=>{});
+      if (!document.hidden){
+        try{ queueTelemetry("tab_visible", "Lap újra aktív", { hidden:false }, { delay: 2000 }); }catch{}
+        loadAll({ forceBust:true }).then((changed)=>{ if(changed){ renderNav(); renderGrid(); } if(!isAdminMode) setTimeout(() => showPopupsIfNeeded(), 100); }).catch(()=>{});
+      }
     });
 
+    flushTelemetry().catch(()=>{});
     loop();
   }
 

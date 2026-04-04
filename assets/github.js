@@ -88,10 +88,10 @@
     return res;
   }
 
-  async function putFileSafe({token, owner, repo, path, branch, message, content, sha, retries=3}){
+  async function putFileSafe({token, owner, repo, path, branch, message, content, sha, retries=3, onConflict}){
     let curSha = sha || null;
+    let curContent = content;
 
-    // ha nem adtak sha-t, próbáljuk cache-ből (gyors)
     if(!curSha){
       try{
         const cached = shaCache.get(cacheKey({owner, repo, branch, path}));
@@ -103,7 +103,7 @@
 
     for(let i=0;i<=retries;i++){
       try{
-        return await putFile({token, owner, repo, path, branch, message, content, sha: curSha});
+        return await putFile({token, owner, repo, path, branch, message, content: curContent, sha: curSha});
       }catch(e){
         lastErr = e;
         const msg = String(e?.message || "");
@@ -115,15 +115,31 @@
         if(i < retries && retryable){
           await new Promise(r => setTimeout(r, 200 + Math.random()*200));
 
-          // sha hiány / konflikt: kérjük le a legfrissebbet és próbáljuk újra
           try{
             const latest = await getFile({token, owner, repo, path, branch});
             curSha = latest.sha || null;
+            if(typeof onConflict === "function"){
+              try{
+                const next = await onConflict({ error: e, attempt: i + 1, latest });
+                if(next && typeof next === "object"){
+                  if(Object.prototype.hasOwnProperty.call(next, "content")) curContent = next.content;
+                  if(Object.prototype.hasOwnProperty.call(next, "sha")) curSha = next.sha;
+                }
+              }catch(onConflictErr){
+                throw onConflictErr;
+              }
+            }
             continue;
           }catch(fetchErr){
-            // ha nem létezik, próbáljuk létrehozni sha nélkül
             if(Number(fetchErr?.status || 0) === 404){
               curSha = null;
+              if(typeof onConflict === "function"){
+                const next = await onConflict({ error: e, attempt: i + 1, latest: null });
+                if(next && typeof next === "object"){
+                  if(Object.prototype.hasOwnProperty.call(next, "content")) curContent = next.content;
+                  if(Object.prototype.hasOwnProperty.call(next, "sha")) curSha = next.sha;
+                }
+              }
               continue;
             }
             throw e;
