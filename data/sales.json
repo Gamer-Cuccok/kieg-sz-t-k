@@ -1673,5 +1673,18 @@
         "unitPrice": 7000
       }
     ]
+  },
+  {
+    "id": "s_b3a856876a2b38_19d59e71e1e",
+    "date": "2026-04-04",
+    "name": "Balázs",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_4f4efd0510951_19b6ae36cba",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
