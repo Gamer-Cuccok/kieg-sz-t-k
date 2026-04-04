@@ -79,7 +79,7 @@
       productsSearch: "",
       salesSearch: "",
       historySearch: "",
-      historyType: "all",
+      historyType: "activity",
       usersSearch: ""
     }
   };
@@ -228,6 +228,13 @@
         botSignals: Array.isArray(value.botSignals) ? value.botSignals.map(x => String(x)) : [],
         lastEvent: String(value.lastEvent || ""),
         lastSummary: String(value.lastSummary || ""),
+        secretSearches: Math.max(0, Number(value.secretSearches || 0) || 0),
+        reservations: Math.max(0, Number(value.reservations || 0) || 0),
+        cartAdds: Math.max(0, Number(value.cartAdds || 0) || 0),
+        cartChanges: Math.max(0, Number(value.cartChanges || 0) || 0),
+        lastSecretSearchAt: Math.max(0, Number(value.lastSecretSearchAt || 0) || 0),
+        lastReservationAt: Math.max(0, Number(value.lastReservationAt || 0) || 0),
+        lastCartAt: Math.max(0, Number(value.lastCartAt || 0) || 0),
         notes: Array.isArray(value.notes) ? value.notes.map(x => String(x)) : [],
       };
     });
@@ -285,6 +292,13 @@
       botSignals,
       lastEvent: String(incoming.lastEvent || base.lastEvent || ""),
       lastSummary: String(incoming.lastSummary || base.lastSummary || ""),
+      secretSearches: Math.max(0, Number(base.secretSearches || 0) || 0) + Math.max(0, Number(incoming.secretSearchesIncrement || 0) || 0),
+      reservations: Math.max(0, Number(base.reservations || 0) || 0) + Math.max(0, Number(incoming.reservationsIncrement || 0) || 0),
+      cartAdds: Math.max(0, Number(base.cartAdds || 0) || 0) + Math.max(0, Number(incoming.cartAddsIncrement || 0) || 0),
+      cartChanges: Math.max(0, Number(base.cartChanges || 0) || 0) + Math.max(0, Number(incoming.cartChangesIncrement || 0) || 0),
+      lastSecretSearchAt: Math.max(Number(base.lastSecretSearchAt || 0) || 0, Number(incoming.lastSecretSearchAt || 0) || 0),
+      lastReservationAt: Math.max(Number(base.lastReservationAt || 0) || 0, Number(incoming.lastReservationAt || 0) || 0),
+      lastCartAt: Math.max(Number(base.lastCartAt || 0) || 0, Number(incoming.lastCartAt || 0) || 0),
       notes,
     };
   }
@@ -365,6 +379,79 @@
     const n = Number(value || 0) || 0;
     if(!n) return "—";
     try{ return new Date(n).toLocaleString("hu-HU"); }catch{ return "—"; }
+  }
+
+  const HISTORY_NOISE_ACTIONS = new Set([
+    "tab_change",
+    "settings_input",
+    "manual_load",
+    "manual_save",
+    "copy_sync_link",
+    "reload",
+    "admin_load",
+    "page_open",
+    "tab_visible",
+    "lang_switch",
+    "favorite_add",
+    "favorite_remove"
+  ]);
+
+  function isImportantAuditEvent(ev){
+    const action = String(ev && ev.action || "");
+    if(!action) return false;
+    return !HISTORY_NOISE_ACTIONS.has(action);
+  }
+
+  function buildAuditUserStats(){
+    const stats = new Map();
+    for(const ev of (Array.isArray(state.audit && state.audit.events) ? state.audit.events : [])){
+      const key = String(ev && (ev.deviceId || ev.sessionId) || "");
+      if(!key) continue;
+      if(!stats.has(key)){
+        stats.set(key, {
+          key,
+          views: 0,
+          actions: 0,
+          cartAdds: 0,
+          cartChanges: 0,
+          reservations: 0,
+          secretSearches: 0,
+          lastSecretSearchAt: 0,
+          lastReservationAt: 0,
+          lastCartAt: 0,
+          lastImportantAt: 0,
+          areas: new Set(),
+        });
+      }
+      const row = stats.get(key);
+      const action = String(ev.action || "");
+      const ts = Number(ev.ts || 0) || 0;
+      if(ev.area) row.areas.add(String(ev.area));
+      if(action === "page_open"){
+        row.views += 1;
+        continue;
+      }
+      row.actions += 1;
+      if(action === "cart_add"){
+        row.cartAdds += 1;
+        row.cartChanges += 1;
+        row.lastCartAt = Math.max(row.lastCartAt, ts);
+      }
+      if(action === "cart_qty" || action === "cart_remove"){
+        row.cartChanges += 1;
+        row.lastCartAt = Math.max(row.lastCartAt, ts);
+      }
+      if(action === "reservation_success"){
+        row.reservations += 1;
+        row.lastReservationAt = Math.max(row.lastReservationAt, ts);
+      }
+      if(action === "secret_password_search"){
+        row.secretSearches += 1;
+        row.lastSecretSearchAt = Math.max(row.lastSecretSearchAt, ts);
+      }
+      if(isImportantAuditEvent(ev)) row.lastImportantAt = Math.max(row.lastImportantAt, ts);
+    }
+    return stats;
   }
 
   
@@ -1031,7 +1118,6 @@
       return;
     }
 
-    try{ logAudit("admin_load", "Admin adatok betöltve", { branch: cfg.branch || "main" }, { scope:"system", fast:false }); }catch{}
     setSaveStatus("ok","Kész");
     renderAll();
   }
@@ -1267,7 +1353,6 @@ function markDirty(flags){
       if(tab === "popups") renderPopups();
       if(tab === "users") renderUsers();
       if(tab === "history") renderHistory();
-      try{ logAudit("tab_change", `Admin fül váltás: ${tab}`, { tab }, { scope:"view", fast:true }); }catch{}
     };
   }
 
@@ -1275,17 +1360,71 @@ function markDirty(flags){
     const panel = $("#panelUsers");
     if(!panel) return;
     const q = String(state.filters.usersSearch || "").trim().toLowerCase();
-    let list = Object.values((state.audit && state.audit.users) ? state.audit.users : {});
+    const derivedStats = buildAuditUserStats();
+    const usersMap = new Map(Object.entries((state.audit && state.audit.users) ? state.audit.users : {}));
+    for(const [key, extra] of derivedStats.entries()){
+      if(usersMap.has(key)) continue;
+      usersMap.set(key, {
+        key,
+        area: (extra.areas && extra.areas.has("public")) ? "public" : ((extra.areas && extra.areas.has("admin")) ? "admin" : "unknown"),
+        label: (extra.areas && extra.areas.has("public")) ? "Publikus kliens" : ((extra.areas && extra.areas.has("admin")) ? "Admin kliens" : "Ismeretlen kliens"),
+        deviceId: key,
+        sessionId: "",
+        firstSeen: 0,
+        lastSeen: Number(extra.lastImportantAt || 0) || 0,
+        sessions: 1,
+        views: 0,
+        actions: 0,
+        lastPage: "",
+        referrer: "",
+        ua: "",
+        platform: "",
+        language: "",
+        timezone: "",
+        screen: "",
+        viewport: "",
+        touch: false,
+        webdriver: false,
+        suspicious: 0,
+        botSignals: [],
+        lastEvent: "",
+        lastSummary: "",
+        secretSearches: 0,
+        reservations: 0,
+        cartAdds: 0,
+        cartChanges: 0,
+        lastSecretSearchAt: 0,
+        lastReservationAt: 0,
+        lastCartAt: 0,
+      });
+    }
+    let list = [...usersMap.values()].map((u) => {
+      const extra = derivedStats.get(String(u.deviceId || u.key || "")) || {};
+      return {
+        ...u,
+        views: Math.max(Number(u.views || 0) || 0, Number(extra.views || 0) || 0),
+        actions: Math.max(Number(u.actions || 0) || 0, Number(extra.actions || 0) || 0),
+        cartAdds: Math.max(Number(u.cartAdds || 0) || 0, Number(extra.cartAdds || 0) || 0),
+        cartChanges: Math.max(Number(u.cartChanges || 0) || 0, Number(extra.cartChanges || 0) || 0),
+        reservations: Math.max(Number(u.reservations || 0) || 0, Number(extra.reservations || 0) || 0),
+        secretSearches: Math.max(Number(u.secretSearches || 0) || 0, Number(extra.secretSearches || 0) || 0),
+        lastSecretSearchAt: Math.max(Number(u.lastSecretSearchAt || 0) || 0, Number(extra.lastSecretSearchAt || 0) || 0),
+        lastReservationAt: Math.max(Number(u.lastReservationAt || 0) || 0, Number(extra.lastReservationAt || 0) || 0),
+        lastCartAt: Math.max(Number(u.lastCartAt || 0) || 0, Number(extra.lastCartAt || 0) || 0),
+        areasSeen: Array.from(extra.areas || []),
+        lastImportantAt: Math.max(Number(extra.lastImportantAt || 0) || 0, Number(u.lastSeen || 0) || 0),
+      };
+    });
     list.sort((a,b) => Number(b.lastSeen || 0) - Number(a.lastSeen || 0));
     if(q){
-      list = list.filter(u => (`${u.label} ${u.area} ${u.ua} ${u.platform} ${u.language} ${u.timezone} ${u.referrer} ${u.lastPage} ${(u.botSignals||[]).join(' ')}`).toLowerCase().includes(q));
+      list = list.filter(u => (`${u.label} ${u.area} ${(u.areasSeen || []).join(' ')} ${u.ua} ${u.platform} ${u.language} ${u.timezone} ${u.referrer} ${u.lastPage} ${(u.botSignals||[]).join(' ')} ${u.lastEvent || ''} ${u.lastSummary || ''}`).toLowerCase().includes(q));
     }
 
     panel.innerHTML = `
       <div class="actions table" style="align-items:center;justify-content:space-between;gap:12px;">
         <div>
           <div style="font-weight:900;">Users</div>
-          <div class="small-muted">Központilag látott kliensek és technikai jelek. Bot/troll szűréshez.</div>
+          <div class="small-muted">Publikus és admin kliensek összesítve. Külön látszanak a fontos user aktivitások is.</div>
         </div>
         <input id="usersSearch" placeholder="Keresés user agent / oldal / referrer / jel alapján..." value="${escapeHtml(state.filters.usersSearch || "")}" style="flex:1;min-width:260px;max-width:520px;">
       </div>
@@ -1295,9 +1434,12 @@ function markDirty(flags){
           <div class="rowline table" style="align-items:flex-start;">
             <div class="left">
               <div style="font-weight:900;">${escapeHtml(u.label || u.area || "Kliens")}</div>
-              <div class="small-muted">Terület: <b>${escapeHtml(u.area || "—")}</b> • Utolsó oldal: <b>${escapeHtml(u.lastPage || "—")}</b></div>
-              <div class="small-muted">Első látás: <b>${escapeHtml(fmtDateTime(u.firstSeen))}</b> • Utolsó aktivitás: <b>${escapeHtml(fmtDateTime(u.lastSeen))}</b></div>
-              <div class="small-muted">Sessions: <b>${Number(u.sessions || 0)}</b> • Viewk: <b>${Number(u.views || 0)}</b> • Akciók: <b>${Number(u.actions || 0)}</b> • Gyanú pont: <b>${Number(u.suspicious || 0)}</b></div>
+              <div class="small-muted">Terület: <b>${escapeHtml(u.area || "—")}</b>${(u.areasSeen || []).length ? ` • Látott felületek: <b>${escapeHtml(u.areasSeen.join(', '))}</b>` : ""} • Utolsó oldal: <b>${escapeHtml(u.lastPage || "—")}</b></div>
+              <div class="small-muted">Első látás: <b>${escapeHtml(fmtDateTime(u.firstSeen))}</b> • Utolsó aktivitás: <b>${escapeHtml(fmtDateTime(u.lastSeen))}</b> • Utolsó fontos aktivitás: <b>${escapeHtml(fmtDateTime(u.lastImportantAt))}</b></div>
+              <div class="small-muted">Megnyitások: <b>${Number(u.views || 0)}</b> • Akciók: <b>${Number(u.actions || 0)}</b> • Kosárba rakás: <b>${Number(u.cartAdds || 0)}</b> • Kosár változás: <b>${Number(u.cartChanges || 0)}</b></div>
+              <div class="small-muted">Foglalások: <b>${Number(u.reservations || 0)}</b> • Titkos jelszó keresőből: <b>${Number(u.secretSearches || 0)}</b> • Gyanú pont: <b>${Number(u.suspicious || 0)}</b></div>
+              <div class="small-muted">Utolsó kosár akció: <b>${escapeHtml(fmtDateTime(u.lastCartAt))}</b> • Utolsó foglalás: <b>${escapeHtml(fmtDateTime(u.lastReservationAt))}</b> • Utolsó jelszó találat: <b>${escapeHtml(fmtDateTime(u.lastSecretSearchAt))}</b></div>
+              <div class="small-muted">Utolsó esemény: <b>${escapeHtml(u.lastEvent || "—")}</b> • ${escapeHtml(u.lastSummary || "—")}</div>
               <div class="small-muted">Nyelv / TZ: <b>${escapeHtml(u.language || "—")}</b> / <b>${escapeHtml(u.timezone || "—")}</b> • Platform: <b>${escapeHtml(u.platform || "—")}</b></div>
               <div class="small-muted">Képernyő / viewport: <b>${escapeHtml(u.screen || "—")}</b> / <b>${escapeHtml(u.viewport || "—")}</b> • Touch: <b>${u.touch ? "igen" : "nem"}</b> • Webdriver: <b>${u.webdriver ? "igen" : "nem"}</b></div>
               <div class="small-muted">Referrer: <b>${escapeHtml(u.referrer || "—")}</b></div>
@@ -1322,9 +1464,10 @@ function markDirty(flags){
     const panel = $("#panelHistory");
     if(!panel) return;
     const q = String(state.filters.historySearch || "").trim().toLowerCase();
-    const type = String(state.filters.historyType || "all");
+    const type = String(state.filters.historyType || "activity");
     let list = Array.isArray(state.audit && state.audit.events) ? [...state.audit.events] : [];
-    if(type !== "all") list = list.filter(ev => String(ev.scope || "") === type || String(ev.action || "") === type || String(ev.area || "") === type);
+    if(type === "activity") list = list.filter(isImportantAuditEvent);
+    else if(type !== "all") list = list.filter(ev => String(ev.scope || "") === type || String(ev.action || "") === type || String(ev.area || "") === type);
     if(q) list = list.filter(ev => (`${ev.summary} ${ev.action} ${ev.scope} ${ev.area} ${JSON.stringify(ev.details || {})}`).toLowerCase().includes(q));
     list.sort((a,b) => Number(b.ts || 0) - Number(a.ts || 0));
 
@@ -1332,10 +1475,10 @@ function markDirty(flags){
       <div class="actions table" style="align-items:center;justify-content:space-between;gap:12px;">
         <div>
           <div style="font-weight:900;">Előzmények</div>
-          <div class="small-muted">Részletes audit napló a fontosabb admin / user / rendszer eseményekről.</div>
+          <div class="small-muted">Alapból csak a fontos aktivitások látszanak: kosár, foglalás, készlet, eladás, biztonsági események, stb.</div>
         </div>
         <select id="historyType" style="width:220px;">
-          ${["all","admin","public","system","view","change","security"].map(x => `<option value="${escapeHtml(x)}"${x===type?" selected":""}>${escapeHtml(x)}</option>`).join("")}
+          ${["activity","all","admin","public","system","change","security"].map(x => `<option value="${escapeHtml(x)}"${x===type?" selected":""}>${escapeHtml(x)}</option>`).join("")}
         </select>
         <input id="historySearch" placeholder="Keresés összefoglaló / action / részlet alapján..." value="${escapeHtml(state.filters.historySearch || "")}" style="flex:1;min-width:260px;max-width:520px;">
       </div>
@@ -1423,8 +1566,8 @@ function markDirty(flags){
       </div>
     `;
 
-    $("#btnLoad").onclick = () => { try{ logAudit("manual_load", "Kézi betöltés indítva", {}, { scope:"admin", fast:true }); }catch{} loadData(); };
-    $("#btnSave").onclick = () => { try{ logAudit("manual_save", "Kézi mentés indítva", {}, { scope:"admin", fast:true }); }catch{} saveDataNow(); };
+    $("#btnLoad").onclick = () => { loadData(); };
+    $("#btnSave").onclick = () => { saveDataNow(); };
 
     try{
       const basePath = location.pathname.replace(/\/admin\.html.*$/,"/");
@@ -1449,7 +1592,6 @@ function markDirty(flags){
             inp.select();
             document.execCommand("copy");
             setSaveStatus("ok","Sync link másolva ✅");
-            try{ logAudit("copy_sync_link", "Sync link másolva", { link }, { scope:"admin", fast:true }); }catch{}
           }catch{}
         }
       };
@@ -1457,7 +1599,6 @@ function markDirty(flags){
     ["cfgOwner","cfgRepo","cfgBranch","cfgToken","cfgResApi"].forEach(id => {
       $("#"+id).addEventListener("input", () => {
         saveCfg(getCfg());
-        try{ logAudit("settings_input", `Beállítás módosítva: ${id}`, { field:id }, { scope:"admin", fast:true }); }catch{}
       });
     });
 
@@ -3227,7 +3368,6 @@ function deleteSale(id){
   function init(){
     renderTabs();
     $("#btnReload").onclick = () => {
-      try{ logAudit("reload", "Admin újratöltés", {}, { scope:"view", fast:true }); }catch{}
       location.reload();
     };
     const historyBtn = $("#btnHistory");

@@ -145,6 +145,52 @@
     try{ localStorage.setItem(TELEMETRY_QUEUE_LS_KEY, JSON.stringify(state.telemetryQueue || [])); }catch{}
   }
 
+  function summarizeTelemetryQueue(queue){
+    const list = Array.isArray(queue) ? queue : [];
+    const summary = {
+      viewsIncrement: 0,
+      actionsIncrement: 0,
+      secretSearchesIncrement: 0,
+      reservationsIncrement: 0,
+      cartAddsIncrement: 0,
+      cartChangesIncrement: 0,
+      lastSecretSearchAt: 0,
+      lastReservationAt: 0,
+      lastCartAt: 0,
+      lastImportantEvent: null,
+    };
+    for(const ev of list){
+      const action = String(ev && ev.action || "");
+      const ts = Number(ev && ev.ts || 0) || Date.now();
+      if(action === "page_open"){
+        summary.viewsIncrement += 1;
+        continue;
+      }
+      summary.actionsIncrement += 1;
+      if(action === "secret_password_search"){
+        summary.secretSearchesIncrement += 1;
+        summary.lastSecretSearchAt = Math.max(summary.lastSecretSearchAt, ts);
+      }
+      if(action === "reservation_success"){
+        summary.reservationsIncrement += 1;
+        summary.lastReservationAt = Math.max(summary.lastReservationAt, ts);
+      }
+      if(action === "cart_add"){
+        summary.cartAddsIncrement += 1;
+        summary.cartChangesIncrement += 1;
+        summary.lastCartAt = Math.max(summary.lastCartAt, ts);
+      }
+      if(action === "cart_qty" || action === "cart_remove"){
+        summary.cartChangesIncrement += 1;
+        summary.lastCartAt = Math.max(summary.lastCartAt, ts);
+      }
+      if(!summary.lastImportantEvent || ts >= Number(summary.lastImportantEvent.ts || 0)){
+        summary.lastImportantEvent = { action, summary: String(ev && ev.summary || ""), ts };
+      }
+    }
+    return summary;
+  }
+
   function mergeAuditUser(prev, next){
     const base = prev && typeof prev === "object" ? prev : {};
     const incoming = next && typeof next === "object" ? next : {};
@@ -174,6 +220,13 @@
       botSignals,
       lastEvent: String(incoming.lastEvent || base.lastEvent || ""),
       lastSummary: String(incoming.lastSummary || base.lastSummary || ""),
+      secretSearches: Math.max(0, Number(base.secretSearches || 0) || 0) + Math.max(0, Number(incoming.secretSearchesIncrement || 0) || 0),
+      reservations: Math.max(0, Number(base.reservations || 0) || 0) + Math.max(0, Number(incoming.reservationsIncrement || 0) || 0),
+      cartAdds: Math.max(0, Number(base.cartAdds || 0) || 0) + Math.max(0, Number(incoming.cartAddsIncrement || 0) || 0),
+      cartChanges: Math.max(0, Number(base.cartChanges || 0) || 0) + Math.max(0, Number(incoming.cartChangesIncrement || 0) || 0),
+      lastSecretSearchAt: Math.max(Number(base.lastSecretSearchAt || 0) || 0, Number(incoming.lastSecretSearchAt || 0) || 0),
+      lastReservationAt: Math.max(Number(base.lastReservationAt || 0) || 0, Number(incoming.lastReservationAt || 0) || 0),
+      lastCartAt: Math.max(Number(base.lastCartAt || 0) || 0, Number(incoming.lastCartAt || 0) || 0),
     };
   }
 
@@ -198,7 +251,13 @@
         eventsMap.set(String(ev.id), clone(ev));
       }
       const users = (remote.users && typeof remote.users === "object") ? remote.users : {};
-      const profile = mergeAuditUser(users[state.deviceId], { ...currentTelemetryProfile(isAdminMode ? "admin" : "public"), lastEvent: queue[0]?.action || "page", lastSummary: queue[0]?.summary || "" });
+      const telemetrySummary = summarizeTelemetryQueue(queue);
+      const profile = mergeAuditUser(users[state.deviceId], {
+        ...currentTelemetryProfile(isAdminMode ? "admin" : "public"),
+        ...telemetrySummary,
+        lastEvent: telemetrySummary.lastImportantEvent?.action || queue[0]?.action || "page",
+        lastSummary: telemetrySummary.lastImportantEvent?.summary || queue[0]?.summary || ""
+      });
       users[state.deviceId] = profile;
       return {
         sha,
@@ -231,11 +290,22 @@
     try{
       const api = String(state.reserveApi || localStorage.getItem("sv_res_api") || "").trim();
       if(api){
+        const telemetrySummary = summarizeTelemetryQueue(queue);
         try{
           const r = await fetch(api.replace(/\/+$/,''), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "telemetry.batch", events: queue, user: currentTelemetryProfile(isAdminMode ? "admin" : "public") })
+            body: JSON.stringify({
+              action: "telemetry.batch",
+              events: queue,
+              summary: telemetrySummary,
+              user: {
+                ...currentTelemetryProfile(isAdminMode ? "admin" : "public"),
+                ...telemetrySummary,
+                lastEvent: telemetrySummary.lastImportantEvent?.action || queue[0]?.action || "page",
+                lastSummary: telemetrySummary.lastImportantEvent?.summary || queue[0]?.summary || ""
+              }
+            })
           });
           if(r.ok){
             state.telemetryQueue = state.telemetryQueue.filter(ev => !queue.some(q => q.id === ev.id));
@@ -253,6 +323,30 @@
         saveTelemetryQueue();
       }
     }catch{}
+  }
+
+  function sendTelemetryBeacon(){
+    try{
+      if(!state.telemetryQueue.length) return false;
+      const api = String(state.reserveApi || localStorage.getItem("sv_res_api") || "").trim();
+      if(!api || !(navigator && typeof navigator.sendBeacon === "function")) return false;
+      const queue = [...state.telemetryQueue];
+      const telemetrySummary = summarizeTelemetryQueue(queue);
+      const payload = {
+        action: "telemetry.batch",
+        events: queue,
+        summary: telemetrySummary,
+        user: {
+          ...currentTelemetryProfile(isAdminMode ? "admin" : "public"),
+          ...telemetrySummary,
+          lastEvent: telemetrySummary.lastImportantEvent?.action || queue[0]?.action || "page",
+          lastSummary: telemetrySummary.lastImportantEvent?.summary || queue[0]?.summary || ""
+        }
+      };
+      return navigator.sendBeacon(api.replace(/\/+$/,''), new Blob([JSON.stringify(payload)], { type: "application/json" }));
+    }catch{
+      return false;
+    }
   }
 
   function scheduleTelemetryFlush(delay=2500){
@@ -309,7 +403,6 @@
     const wasFav = state.favorites.has(pid);
     if(wasFav) state.favorites.delete(pid);
     else state.favorites.add(pid);
-    try{ queueTelemetry(wasFav ? "favorite_remove" : "favorite_add", wasFav ? "Kedvenc törölve" : "Kedvenc hozzáadva", { productId: pid }); }catch{}
     saveFavorites();
     renderNav();
     renderGrid();
@@ -530,7 +623,7 @@
     if(!candidate || !cfg.passwordHash) return false;
     const hash = await sha256Hex(candidate);
     if(String(hash || "").trim().toLowerCase() !== cfg.passwordHash) return false;
-    try{ queueTelemetry("secret_unlock", "Titkos mód feloldva", { via: "search" }, { scope:"security" }); }catch{}
+    try{ queueTelemetry("secret_password_search", "Titkos jelszó beírva a keresőbe", { via: "search" }, { scope:"security" }); }catch{}
     activateSecretMode(cfg.durationMs);
     return true;
   }
@@ -747,9 +840,14 @@
     const pid = String(productId || "");
     const q = Math.max(0, Number(nextQty || 0));
     if(!pid) return;
+    const prev = cartQty(pid);
     if(q <= 0) state.cart.delete(pid);
     else state.cart.set(pid, q);
-    try{ queueTelemetry("cart_qty", "Kosár mennyiség módosítva", { productId: pid, qty: q }); }catch{}
+    if(q !== prev){
+      const action = q <= 0 ? "cart_remove" : "cart_qty";
+      const summary = q <= 0 ? "Termék kivéve a kosárból" : "Kosár mennyiség módosítva";
+      try{ queueTelemetry(action, summary, { productId: pid, qty: q, previousQty: prev }); }catch{}
+    }
     saveCart();
     updateCartBadge();
     if(state.cartOpen) renderCart();
@@ -2489,7 +2587,6 @@
   function initLang(){
     $("#langBtn").onclick = () => {
       state.lang = state.lang === "hu" ? "en" : "hu";
-      try{ queueTelemetry("lang_switch", "Nyelv váltva", { lang: state.lang }); }catch{}
       localStorage.setItem("sv_lang", state.lang);
       setLangUI();
       renderNav();
@@ -2640,9 +2737,12 @@
 
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden){
-        try{ queueTelemetry("tab_visible", "Lap újra aktív", { hidden:false }, { delay: 2000 }); }catch{}
         loadAll({ forceBust:true }).then((changed)=>{ if(changed){ renderNav(); renderGrid(); } if(!isAdminMode) setTimeout(() => showPopupsIfNeeded(), 100); }).catch(()=>{});
       }
+    });
+
+    addEventListener("pagehide", () => {
+      if(!sendTelemetryBeacon()) flushTelemetry().catch(()=>{});
     });
 
     flushTelemetry().catch(()=>{});
