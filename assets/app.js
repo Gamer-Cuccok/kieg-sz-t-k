@@ -61,6 +61,10 @@
     telemetryViewsPending: 0,
     telemetryActionsPending: 0,
     telemetryFlushTimer: null,
+    searchLogTimer: null,
+    lastSearchLogSig: "",
+    lastSearchLogAt: 0,
+    lastSearchDisplay: "",
   };
 
   const SECRET_SESSION_LS_KEY = "sv_secret_session_v1";
@@ -154,6 +158,9 @@
       reservationsIncrement: 0,
       cartAddsIncrement: 0,
       cartChangesIncrement: 0,
+      searchesIncrement: 0,
+      lastSearchAt: 0,
+      lastSearchText: "",
       lastSecretSearchAt: 0,
       lastReservationAt: 0,
       lastCartAt: 0,
@@ -183,6 +190,15 @@
       if(action === "cart_qty" || action === "cart_remove"){
         summary.cartChangesIncrement += 1;
         summary.lastCartAt = Math.max(summary.lastCartAt, ts);
+      }
+      if(action === "search_query"){
+        summary.searchesIncrement += 1;
+        summary.lastSearchAt = Math.max(summary.lastSearchAt, ts);
+        summary.lastSearchText = String(ev?.details?.textMasked || ev?.details?.text || ev?.details?.query || "");
+      }
+      if(action === "search_clear"){
+        summary.lastSearchAt = Math.max(summary.lastSearchAt, ts);
+        summary.lastSearchText = "";
       }
       if(!summary.lastImportantEvent || ts >= Number(summary.lastImportantEvent.ts || 0)){
         summary.lastImportantEvent = { action, summary: String(ev && ev.summary || ""), ts };
@@ -224,6 +240,9 @@
       reservations: Math.max(0, Number(base.reservations || 0) || 0) + Math.max(0, Number(incoming.reservationsIncrement || 0) || 0),
       cartAdds: Math.max(0, Number(base.cartAdds || 0) || 0) + Math.max(0, Number(incoming.cartAddsIncrement || 0) || 0),
       cartChanges: Math.max(0, Number(base.cartChanges || 0) || 0) + Math.max(0, Number(incoming.cartChangesIncrement || 0) || 0),
+      searches: Math.max(0, Number(base.searches || 0) || 0) + Math.max(0, Number(incoming.searchesIncrement || 0) || 0),
+      lastSearchAt: Math.max(Number(base.lastSearchAt || 0) || 0, Number(incoming.lastSearchAt || 0) || 0),
+      lastSearchText: String(incoming.lastSearchText !== undefined ? incoming.lastSearchText : (base.lastSearchText || "")),
       lastSecretSearchAt: Math.max(Number(base.lastSecretSearchAt || 0) || 0, Number(incoming.lastSecretSearchAt || 0) || 0),
       lastReservationAt: Math.max(Number(base.lastReservationAt || 0) || 0, Number(incoming.lastReservationAt || 0) || 0),
       lastCartAt: Math.max(Number(base.lastCartAt || 0) || 0, Number(incoming.lastCartAt || 0) || 0),
@@ -374,6 +393,53 @@
     else state.telemetryActionsPending += 1;
     saveTelemetryQueue();
     scheduleTelemetryFlush(opts.delay || 3000);
+  }
+
+  function normalizeSearchValue(raw){
+    return String(raw || "").replace(/\s+/g, " ").trim();
+  }
+
+  function queueSearchTelemetry(rawValue, opts={}){
+    const value = normalizeSearchValue(rawValue);
+    const via = String(opts.via || "search");
+    const force = !!opts.force;
+    const now = Date.now();
+
+    if(value){
+      const sig = `search_query::${value}`;
+      if(!force && sig === state.lastSearchLogSig && (now - Number(state.lastSearchLogAt || 0)) < 4000) return;
+      state.lastSearchLogSig = sig;
+      state.lastSearchLogAt = now;
+      state.lastSearchDisplay = value;
+      queueTelemetry("search_query", `Keresés: ${value}`, {
+        via,
+        text: value,
+        textMasked: value,
+        length: value.length,
+        normalized: norm(value)
+      }, { scope:"activity" });
+      return;
+    }
+
+    if(state.lastSearchDisplay){
+      const prev = state.lastSearchDisplay;
+      state.lastSearchLogSig = "search_clear";
+      state.lastSearchLogAt = now;
+      state.lastSearchDisplay = "";
+      queueTelemetry("search_clear", "Keresés törölve", {
+        via,
+        previousText: prev,
+        previousLength: prev.length
+      }, { scope:"activity" });
+    }
+  }
+
+  function scheduleSearchTelemetry(rawValue, opts={}){
+    if(state.searchLogTimer) clearTimeout(state.searchLogTimer);
+    const delay = Math.max(250, Number(opts.delay || 700) || 700);
+    state.searchLogTimer = setTimeout(() => {
+      queueSearchTelemetry(rawValue, opts);
+    }, delay);
   }
 
   function loadFavorites(){
@@ -623,7 +689,18 @@
     if(!candidate || !cfg.passwordHash) return false;
     const hash = await sha256Hex(candidate);
     if(String(hash || "").trim().toLowerCase() !== cfg.passwordHash) return false;
-    try{ queueTelemetry("secret_password_search", "Titkos jelszó beírva a keresőbe", { via: "search" }, { scope:"security" }); }catch{}
+    try{
+      state.lastSearchLogSig = "secret_password_search";
+      state.lastSearchLogAt = Date.now();
+      state.lastSearchDisplay = "";
+      queueTelemetry("secret_password_search", "Titkos jelszó sikeresen beírva a keresőbe", {
+        via: "search",
+        success: true,
+        secretMatched: true,
+        textMasked: "[SECRET_SUCCESS]",
+        textLength: candidate.length
+      }, { scope:"security" });
+    }catch{}
     activateSecretMode(cfg.durationMs);
     return true;
   }
@@ -2555,7 +2632,7 @@
     const input = $("#search");
     if(!input) return;
 
-    const applySearch = async () => {
+    const applySearch = async (opts={}) => {
       const seq = ++state.searchSeq;
       const raw = input.value || "";
       const unlocked = await tryUnlockFromSearchValue(raw);
@@ -2563,10 +2640,13 @@
       if(unlocked){
         state.search = "";
         input.value = "";
+        if(state.searchLogTimer) clearTimeout(state.searchLogTimer);
         return;
       }
       state.search = raw;
       renderGrid();
+      if(opts.immediate) queueSearchTelemetry(raw, { via: opts.via || "search", force: !!opts.force });
+      else scheduleSearchTelemetry(raw, { via: opts.via || "search" });
     };
 
     try{
@@ -2575,12 +2655,12 @@
       input.spellcheck = false;
     }catch{}
 
-    input.addEventListener("input", applySearch);
-    input.addEventListener("search", applySearch);
-    input.addEventListener("change", applySearch);
-    input.addEventListener("compositionend", applySearch);
+    input.addEventListener("input", () => applySearch({ via:"input" }));
+    input.addEventListener("search", () => applySearch({ via:"search", immediate:true, force:true }));
+    input.addEventListener("change", () => applySearch({ via:"change", immediate:true, force:true }));
+    input.addEventListener("compositionend", () => applySearch({ via:"compositionend", immediate:true, force:true }));
     input.addEventListener("keyup", (e)=>{
-      if(e.key === "Enter" || e.key === "Escape") applySearch();
+      if(e.key === "Enter" || e.key === "Escape") applySearch({ via:`keyup:${e.key}`, immediate:true, force:true });
     });
   }
 

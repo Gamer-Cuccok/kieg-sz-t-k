@@ -232,6 +232,9 @@
         reservations: Math.max(0, Number(value.reservations || 0) || 0),
         cartAdds: Math.max(0, Number(value.cartAdds || 0) || 0),
         cartChanges: Math.max(0, Number(value.cartChanges || 0) || 0),
+        searches: Math.max(0, Number(value.searches || 0) || 0),
+        lastSearchAt: Math.max(0, Number(value.lastSearchAt || 0) || 0),
+        lastSearchText: String(value.lastSearchText || ""),
         lastSecretSearchAt: Math.max(0, Number(value.lastSecretSearchAt || 0) || 0),
         lastReservationAt: Math.max(0, Number(value.lastReservationAt || 0) || 0),
         lastCartAt: Math.max(0, Number(value.lastCartAt || 0) || 0),
@@ -296,6 +299,9 @@
       reservations: Math.max(0, Number(base.reservations || 0) || 0) + Math.max(0, Number(incoming.reservationsIncrement || 0) || 0),
       cartAdds: Math.max(0, Number(base.cartAdds || 0) || 0) + Math.max(0, Number(incoming.cartAddsIncrement || 0) || 0),
       cartChanges: Math.max(0, Number(base.cartChanges || 0) || 0) + Math.max(0, Number(incoming.cartChangesIncrement || 0) || 0),
+      searches: Math.max(0, Number(base.searches || 0) || 0) + Math.max(0, Number(incoming.searchesIncrement || 0) || 0),
+      lastSearchAt: Math.max(Number(base.lastSearchAt || 0) || 0, Number(incoming.lastSearchAt || 0) || 0),
+      lastSearchText: String(incoming.lastSearchText !== undefined ? incoming.lastSearchText : (base.lastSearchText || "")),
       lastSecretSearchAt: Math.max(Number(base.lastSecretSearchAt || 0) || 0, Number(incoming.lastSecretSearchAt || 0) || 0),
       lastReservationAt: Math.max(Number(base.lastReservationAt || 0) || 0, Number(incoming.lastReservationAt || 0) || 0),
       lastCartAt: Math.max(Number(base.lastCartAt || 0) || 0, Number(incoming.lastCartAt || 0) || 0),
@@ -415,7 +421,10 @@
           cartAdds: 0,
           cartChanges: 0,
           reservations: 0,
+          searches: 0,
           secretSearches: 0,
+          lastSearchAt: 0,
+          lastSearchText: "",
           lastSecretSearchAt: 0,
           lastReservationAt: 0,
           lastCartAt: 0,
@@ -445,9 +454,16 @@
         row.reservations += 1;
         row.lastReservationAt = Math.max(row.lastReservationAt, ts);
       }
+      if(action === "search_query"){
+        row.searches += 1;
+        row.lastSearchAt = Math.max(row.lastSearchAt, ts);
+        row.lastSearchText = String(ev?.details?.textMasked || ev?.details?.text || ev?.details?.query || "");
+      }
       if(action === "secret_password_search"){
         row.secretSearches += 1;
+        row.lastSearchAt = Math.max(row.lastSearchAt, ts);
         row.lastSecretSearchAt = Math.max(row.lastSecretSearchAt, ts);
+        row.lastSearchText = "[SECRET_SUCCESS]";
       }
       if(isImportantAuditEvent(ev)) row.lastImportantAt = Math.max(row.lastImportantAt, ts);
     }
@@ -1417,7 +1433,7 @@ function markDirty(flags){
     });
     list.sort((a,b) => Number(b.lastSeen || 0) - Number(a.lastSeen || 0));
     if(q){
-      list = list.filter(u => (`${u.label} ${u.area} ${(u.areasSeen || []).join(' ')} ${u.ua} ${u.platform} ${u.language} ${u.timezone} ${u.referrer} ${u.lastPage} ${(u.botSignals||[]).join(' ')} ${u.lastEvent || ''} ${u.lastSummary || ''}`).toLowerCase().includes(q));
+      list = list.filter(u => (`${u.label} ${u.area} ${(u.areasSeen || []).join(' ')} ${u.ua} ${u.platform} ${u.language} ${u.timezone} ${u.referrer} ${u.lastPage} ${(u.botSignals||[]).join(' ')} ${u.lastEvent || ''} ${u.lastSummary || ''} ${u.lastSearchText || ''}`).toLowerCase().includes(q));
     }
 
     panel.innerHTML = `
@@ -1436,8 +1452,9 @@ function markDirty(flags){
               <div style="font-weight:900;">${escapeHtml(u.label || u.area || "Kliens")}</div>
               <div class="small-muted">Terület: <b>${escapeHtml(u.area || "—")}</b>${(u.areasSeen || []).length ? ` • Látott felületek: <b>${escapeHtml(u.areasSeen.join(', '))}</b>` : ""} • Utolsó oldal: <b>${escapeHtml(u.lastPage || "—")}</b></div>
               <div class="small-muted">Első látás: <b>${escapeHtml(fmtDateTime(u.firstSeen))}</b> • Utolsó aktivitás: <b>${escapeHtml(fmtDateTime(u.lastSeen))}</b> • Utolsó fontos aktivitás: <b>${escapeHtml(fmtDateTime(u.lastImportantAt))}</b></div>
-              <div class="small-muted">Megnyitások: <b>${Number(u.views || 0)}</b> • Akciók: <b>${Number(u.actions || 0)}</b> • Kosárba rakás: <b>${Number(u.cartAdds || 0)}</b> • Kosár változás: <b>${Number(u.cartChanges || 0)}</b></div>
+              <div class="small-muted">Megnyitások: <b>${Number(u.views || 0)}</b> • Akciók: <b>${Number(u.actions || 0)}</b> • Keresések: <b>${Number(u.searches || 0)}</b> • Kosárba rakás: <b>${Number(u.cartAdds || 0)}</b> • Kosár változás: <b>${Number(u.cartChanges || 0)}</b></div>
               <div class="small-muted">Foglalások: <b>${Number(u.reservations || 0)}</b> • Titkos jelszó keresőből: <b>${Number(u.secretSearches || 0)}</b> • Gyanú pont: <b>${Number(u.suspicious || 0)}</b></div>
+              <div class="small-muted">Utolsó keresés: <b>${escapeHtml(u.lastSearchText || "—")}</b> • Utolsó keresés ideje: <b>${escapeHtml(fmtDateTime(u.lastSearchAt))}</b></div>
               <div class="small-muted">Utolsó kosár akció: <b>${escapeHtml(fmtDateTime(u.lastCartAt))}</b> • Utolsó foglalás: <b>${escapeHtml(fmtDateTime(u.lastReservationAt))}</b> • Utolsó jelszó találat: <b>${escapeHtml(fmtDateTime(u.lastSecretSearchAt))}</b></div>
               <div class="small-muted">Utolsó esemény: <b>${escapeHtml(u.lastEvent || "—")}</b> • ${escapeHtml(u.lastSummary || "—")}</div>
               <div class="small-muted">Nyelv / TZ: <b>${escapeHtml(u.language || "—")}</b> / <b>${escapeHtml(u.timezone || "—")}</b> • Platform: <b>${escapeHtml(u.platform || "—")}</b></div>
