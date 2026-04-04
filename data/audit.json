@@ -7,7 +7,7 @@
       "deviceId": "admindev_mnkvzra8_dmq409xs",
       "sessionId": "d606f463-87de-40b1-ad8c-34f8caeb6026",
       "firstSeen": 1775340665413,
-      "lastSeen": 1775340780349,
+      "lastSeen": 1775340785471,
       "sessions": 1,
       "views": 0,
       "actions": 0,
@@ -24,11 +24,37 @@
       "suspicious": 0,
       "botSignals": [],
       "lastEvent": "tab_change",
-      "lastSummary": "Admin fül váltás: sales",
+      "lastSummary": "Admin fül váltás: history",
       "notes": []
     }
   },
   "events": [
+    {
+      "id": "evt_mnkw2cwh_g2d45pkv",
+      "ts": 1775340785105,
+      "scope": "view",
+      "area": "admin",
+      "action": "tab_change",
+      "summary": "Admin fül váltás: history",
+      "sessionId": "d606f463-87de-40b1-ad8c-34f8caeb6026",
+      "deviceId": "admindev_mnkvzra8_dmq409xs",
+      "details": {
+        "tab": "history"
+      }
+    },
+    {
+      "id": "evt_mnkw2b9t_qnciuryy",
+      "ts": 1775340782993,
+      "scope": "change",
+      "area": "admin",
+      "action": "reservation_delete",
+      "summary": "Foglalás törölve: r_mnkw1hsp_fod75s",
+      "sessionId": "d606f463-87de-40b1-ad8c-34f8caeb6026",
+      "deviceId": "admindev_mnkvzra8_dmq409xs",
+      "details": {
+        "id": "r_mnkw1hsp_fod75s"
+      }
+    },
     {
       "id": "evt_mnkw28t4_9eguthus",
       "ts": 1775340779800,
@@ -278,7 +304,7 @@
     }
   ],
   "_meta": {
-    "rev": 1775340780349,
-    "updatedAt": "2026-04-04T22:13:00.349Z"
+    "rev": 1775340785471,
+    "updatedAt": "2026-04-04T22:13:05.471Z"
   }
 }
