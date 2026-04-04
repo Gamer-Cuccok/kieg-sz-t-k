@@ -8,7 +8,7 @@
     "editCount": 0,
     "recorded": false,
     "deleted": false,
-    "lastAction": "Új foglalás érkezett",
+    "lastAction": "Ãj foglalÃ¡s Ã©rkezett",
     "items": [
       {
         "productId": "p_441538bc936fa_19be641e8b6",
@@ -22,6 +22,24 @@
       },
       {
         "productId": "p_d1c0df1b50542_19c7aee39b0",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
+  },
+  {
+    "id": "r_mnk352b6_jj7m4k",
+    "publicCode": "699",
+    "createdAt": 1775292202482,
+    "expiresAt": 1775465002482,
+    "confirmed": false,
+    "editCount": 0,
+    "recorded": false,
+    "deleted": false,
+    "lastAction": "Új foglalás érkezett",
+    "items": [
+      {
+        "productId": "p_441538bc936fa_19be641e8b6",
         "qty": 1,
         "unitPrice": 6500
       }
