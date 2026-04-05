@@ -1722,5 +1722,18 @@
         "unitPrice": 6000
       }
     ]
+  },
+  {
+    "id": "s_a9689a02d0306_19d5f296f4a",
+    "date": "2026-04-05",
+    "name": "Tündi",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_7de60a56fee0d8_19cae6f3ed7",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
