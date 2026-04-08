@@ -1817,18 +1817,5 @@
         "unitPrice": 6500
       }
     ]
-  },
-  {
-    "id": "s_7d40fe4b526a8_19d6c91fbc3",
-    "date": "2026-04-08",
-    "name": "23",
-    "payment": "4234",
-    "items": [
-      {
-        "productId": "p_f711f17c5fdd3_19b6a7bed1f",
-        "qty": 1,
-        "unitPrice": 4000
-      }
-    ]
   }
 ]
