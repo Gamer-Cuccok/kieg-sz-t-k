@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gamer Cuccok Admin</title>
+  <link rel="stylesheet" href="assets/styles.css?v=sv_fix18_20260331" />
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+</head>
+<body>
+  <div class="admin-wrap">
+    <div class="admin-top">
+      <div>
+        <div style="font-weight:900;font-size:22px;letter-spacing:.2px;">Gamer <span style="background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent;">Cuccok</span> Admin</div>
+        <div class="save-ind" style="margin-top:6px;">
+          <span class="dot" id="saveDot"></span>
+          <span id="saveText">Kész</span>
+          <span style="opacity:.35">•</span>
+          <span>Auto-mentés</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <a class="ghost" href="./">Katalógus</a>
+        <button class="ghost" id="btnReload">Reload</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <button data-tab="products" class="active">Termékek</button>
+      <button data-tab="categories">Kategóriák</button>
+      <button data-tab="sales">Eladások</button>
+      <button data-tab="chart">Diagramm</button>
+      <button data-tab="popups">Pop-upok</button>
+      <button data-tab="settings">Beállítások</button>
+    </div>
+
+    <div class="panel" id="panelProducts"></div>
+    <div class="panel" id="panelCategories" style="display:none"></div>
+    <div class="panel" id="panelSales" style="display:none"></div>
+    <div class="panel" id="panelChart" style="display:none"></div>
+    <div class="panel" id="panelPopups" style="display:none"></div>
+    <div class="panel" id="panelSettings" style="display:none"></div>
+  </div>
+
+  <!-- MODAL (prompt helyett) -->
+  <div class="modal-backdrop" id="modalBg">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-head-copy">
+          <h2 id="modalTitle">Modal</h2>
+          <p id="modalSub" class="small-muted"></p>
+        </div>
+        <button type="button" class="modal-x" id="modalCloseBtn" aria-label="Bezárás">✕</button>
+      </div>
+      <div id="modalBody"></div>
+      <div class="row" style="margin-top:14px;" id="modalActions"></div>
+    </div>
+  </div>
+
+  <script src="assets/github.js?v=sv_fix18_20260331"></script>
+  <script src="assets/admin.js?v=sv_fix19_20260408"></script>
+</body>
+</html>
