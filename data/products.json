@@ -233,7 +233,7 @@
     {
       "id": "p_d44a935527ac98_19b5b68e535",
       "categoryId": "elfraya25",
-      "status": "out",
+      "status": "ok",
       "stock": 0,
       "visible": true,
       "secret": false,
@@ -744,8 +744,8 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1775640178571,
-    "updatedAt": "2026-04-08T09:22:58.571Z",
+    "rev": 1775640286737,
+    "updatedAt": "2026-04-08T09:24:46.737Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
