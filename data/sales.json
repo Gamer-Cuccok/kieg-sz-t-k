@@ -1840,5 +1840,18 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_9c983e229e397_19d725346c5",
+    "date": "2026-04-09",
+    "name": "S. Krisz haverija pekk",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_7e90788f76589_19b6adc49b6",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
