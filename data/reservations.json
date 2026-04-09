@@ -3,12 +3,10 @@
     "id": "r_mnrer5s6_vmpn1j",
     "publicCode": "541",
     "createdAt": 1775734972422,
-    "expiresAt": 1775907772422,
-    "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "Új foglalás érkezett",
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_7e90788f76589_19b6adc49b6",
