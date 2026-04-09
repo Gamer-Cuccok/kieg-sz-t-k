@@ -1,18 +1,1 @@
-[
-  {
-    "id": "r_mnrer5s6_vmpn1j",
-    "publicCode": "541",
-    "createdAt": 1775734972422,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_7e90788f76589_19b6adc49b6",
-        "qty": 1,
-        "unitPrice": 6500
-      }
-    ]
-  }
-]
+[]
