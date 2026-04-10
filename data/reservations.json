@@ -1,1 +1,20 @@
-[]
+[
+  {
+    "id": "r_mnskagz0_157zyq",
+    "publicCode": "100",
+    "createdAt": 1775804737644,
+    "expiresAt": 1775977537644,
+    "confirmed": false,
+    "editCount": 0,
+    "recorded": false,
+    "deleted": false,
+    "lastAction": "Új foglalás érkezett",
+    "items": [
+      {
+        "productId": "p_7e90788f76589_19b6adc49b6",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
+  }
+]
