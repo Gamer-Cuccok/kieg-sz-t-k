@@ -3,8 +3,8 @@
     "id": "r_mnud2l33_2qucde",
     "publicCode": "628",
     "createdAt": 1775913544768,
-    "expiresAt": 1776086344768,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
     "modified": false,
     "modifiedAt": 0,
     "items": [
@@ -24,8 +24,8 @@
     "id": "r_mnudvyqe_e7x2qz",
     "publicCode": "265",
     "createdAt": 1775914915478,
-    "expiresAt": 1776087715478,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
     "modified": true,
     "modifiedAt": 1775915297993,
     "items": [
