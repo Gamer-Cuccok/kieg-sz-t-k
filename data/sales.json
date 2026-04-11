@@ -1874,5 +1874,18 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_5acdf02eac6ed8_19d7dbb5ca8",
+    "date": "2026-04-11",
+    "name": "Niki",
+    "payment": "- nem maradt több",
+    "items": [
+      {
+        "productId": "p_3eab9151a584a_19b5bd5a4a7",
+        "qty": 2,
+        "unitPrice": 0
+      }
+    ]
   }
 ]
