@@ -1,18 +1,1 @@
-[
-  {
-    "id": "r_mnudvyqe_e7x2qz",
-    "publicCode": "265",
-    "createdAt": 1775914915478,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": true,
-    "modifiedAt": 1775915297993,
-    "items": [
-      {
-        "productId": "p_d1c0df1b50542_19c7aee39b0",
-        "qty": 1,
-        "unitPrice": 6500
-      }
-    ]
-  }
-]
+[]
