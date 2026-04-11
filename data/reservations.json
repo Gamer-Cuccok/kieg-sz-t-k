@@ -5,10 +5,8 @@
     "createdAt": 1775804737644,
     "expiresAt": 1775977537644,
     "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "Ãj foglalÃ¡s Ã©rkezett",
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_7e90788f76589_19b6adc49b6",
@@ -21,12 +19,10 @@
     "id": "r_mnu765tg_afjhia",
     "publicCode": "184",
     "createdAt": 1775903633909,
-    "expiresAt": 1776076433909,
-    "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "Új foglalás érkezett",
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_5aaf6d03437c8_19cae96fb2e",
