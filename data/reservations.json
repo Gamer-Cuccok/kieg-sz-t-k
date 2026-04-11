@@ -5,8 +5,8 @@
     "createdAt": 1775913544768,
     "expiresAt": null,
     "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
+    "modified": true,
+    "modifiedAt": 1775916411778,
     "items": [
       {
         "productId": "p_4f4efd0510951_19b6ae36cba",
@@ -15,6 +15,11 @@
       },
       {
         "productId": "p_d1c0df1b50542_19c7aee39b0",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_b862159bc3f608_19beb0c6380",
         "qty": 1,
         "unitPrice": 6500
       }
