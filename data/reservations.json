@@ -5,10 +5,8 @@
     "createdAt": 1775913544768,
     "expiresAt": 1776086344768,
     "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "Ãj foglalÃ¡s Ã©rkezett",
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_4f4efd0510951_19b6ae36cba",
@@ -28,10 +26,8 @@
     "createdAt": 1775914915478,
     "expiresAt": 1776087715478,
     "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "Új foglalás érkezett",
+    "modified": true,
+    "modifiedAt": 1775915297993,
     "items": [
       {
         "productId": "p_d1c0df1b50542_19c7aee39b0",
