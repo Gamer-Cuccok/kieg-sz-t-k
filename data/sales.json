@@ -1900,5 +1900,28 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_ab123f167045c_19d82a284b5",
+    "date": "2026-04-12",
+    "name": "Balázs",
+    "payment": "Vásárláskor (7-es Ákosé)",
+    "items": [
+      {
+        "productId": "p_4f4efd0510951_19b6ae36cba",
+        "qty": 2,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_81909e3d929628_19c7af58890",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_441538bc936fa_19be641e8b6",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
