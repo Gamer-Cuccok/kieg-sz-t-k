@@ -1923,5 +1923,23 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_24225839aa61c_19d87cfa20d",
+    "date": "2026-04-13",
+    "name": "S. Krisz haverja",
+    "payment": "Vásárláskor",
+    "items": [
+      {
+        "productId": "p_4895703c991ba8_19cae9ce8a4",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_a52ce38bb9b78_19cae8202a0",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
