@@ -548,8 +548,8 @@
     {
       "id": "p_81909e3d929628_19c7af58890",
       "categoryId": "vapsolo80k",
-      "status": "out",
-      "stock": 0,
+      "status": "soon",
+      "stock": 1,
       "visible": true,
       "secret": false,
       "price": null,
@@ -558,7 +558,7 @@
       "name_en": "Vapsolo Quads 80k",
       "flavor_hu": "7. Pink Limonádé & Eper Banán & Kiwi Maracuja Guava & Barack Bogyó",
       "flavor_en": "7. Pink Limonade & Strawberry Banana & Kiwi Passion Fruit Guava & Peach Berry",
-      "soonEta": ""
+      "soonEta": "2026-04"
     },
     {
       "id": "p_0b0caf39ccc8_19c7b06f9d2",
@@ -744,8 +744,8 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1776101504861,
-    "updatedAt": "2026-04-13T17:31:44.861Z",
+    "rev": 1776101552768,
+    "updatedAt": "2026-04-13T17:32:32.768Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
