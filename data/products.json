@@ -413,16 +413,16 @@
     {
       "id": "p_8a393a08657b48_19b6ad67348",
       "categoryId": "vapsolo80k",
-      "status": "out",
-      "stock": 0,
+      "status": "soon",
+      "stock": 1,
       "visible": true,
       "secret": false,
       "price": null,
       "image": "https://i.ibb.co/JFyP5Ddg/2-VANILLA-COLA-LEMON-PEACH-STRAWBERRY-RASPBERRY-CHERRY-ICE-GRAPEICE-NOBG.png",
       "name_hu": "Vapsolo Quads 80k",
       "name_en": "Vapsolo Quads 80k",
-      "flavor_hu": "Vanília Kóla & Citrom Barack & Eper Málna Cseresznye Jég & Szőlő Jég",
-      "flavor_en": "Vanilla Cola & Lemon Peach & Strawberry Raspberry Cherry Ice & Grape Ice",
+      "flavor_hu": "2. Vanília Kóla & Citrom Barack & Eper Málna Cseresznye Jég & Szőlő Jég",
+      "flavor_en": "2. Vanilla Cola & Lemon Peach & Strawberry Raspberry Cherry Ice & Grape Ice",
       "soonEta": ""
     },
     {
@@ -744,8 +744,8 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1776101114826,
-    "updatedAt": "2026-04-13T17:25:14.826Z",
+    "rev": 1776101204511,
+    "updatedAt": "2026-04-13T17:26:44.511Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
