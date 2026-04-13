@@ -698,17 +698,17 @@
     {
       "id": "p_bdf2876c776fe_19cae8d647b",
       "categoryId": "vapsolo80k",
-      "status": "out",
-      "stock": 0,
+      "status": "soon",
+      "stock": 1,
       "visible": true,
       "secret": false,
       "price": null,
       "image": "https://i.ibb.co/Hf8pN7vp/13-APPLE-PEACH-BLUEBERRY-WATERMELON-DRAGON-FRUIT-BANANA-CHERRY-SOLOAPPLE-PEACH-BLUEBERRY-WATERMELON.png",
       "name_hu": "Vapsolo Quads 80k",
       "name_en": "Vapsolo Quads 80k",
-      "flavor_hu": "Alma Barack & Kék Áfonya Dinnye & Sárkánygyümölcs Banán Cseresznye & Solo 1#",
-      "flavor_en": "Apple Peach & Blueberry Watermelon & Dragon Fruit Banana Cherry & Solo 1#",
-      "soonEta": ""
+      "flavor_hu": "13. Alma Barack & Kék Áfonya Dinnye & Sárkánygyümölcs Banán Cseresznye & Solo 1#",
+      "flavor_en": "13. Apple Peach & Blueberry Watermelon & Dragon Fruit Banana Cherry & Solo 1#",
+      "soonEta": "2026-04"
     },
     {
       "id": "p_5aaf6d03437c8_19cae96fb2e",
@@ -744,8 +744,8 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1776101790510,
-    "updatedAt": "2026-04-13T17:36:30.510Z",
+    "rev": 1776101896513,
+    "updatedAt": "2026-04-13T17:38:16.513Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
