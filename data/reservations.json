@@ -1,21 +1,5 @@
 [
   {
-    "id": "r_mnxf98g1_1shdhz",
-    "publicCode": "802",
-    "createdAt": 1776098612738,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_4f4efd0510951_19b6ae36cba",
-        "qty": 1,
-        "unitPrice": 6500
-      }
-    ]
-  },
-  {
     "id": "r_mnxi6xbn_kohicz",
     "publicCode": "717",
     "createdAt": 1776103543860,
