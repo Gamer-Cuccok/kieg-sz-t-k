@@ -488,7 +488,7 @@
     {
       "id": "p_8899c25f039f48_19beb1d7e76",
       "categoryId": "vapsolo80k",
-      "status": "out",
+      "status": "soon",
       "stock": 0,
       "visible": true,
       "secret": false,
@@ -496,9 +496,9 @@
       "image": "https://i.ibb.co/wTJg8z9/LEMON-LIME-WATERMELON-ICE-BLACK-ICE-DRAGONFRUIT-STRAWBERRY-LOVE66-NOBG.png",
       "name_hu": "Vapsolo Quads 80k",
       "name_en": "Vapsolo Quads 80k",
-      "flavor_hu": "Citrom Lime & Dinnye Jég & Fekete Jég Sárkánygyümölcs Eper & Love 66",
-      "flavor_en": "Lemon Lime & Watermelon Ice & Black Ice Dragon Fruit Strawberry & Love 66",
-      "soonEta": ""
+      "flavor_hu": "1. Citrom Lime & Dinnye Jég & Fekete Jég Sárkánygyümölcs Eper & Love 66",
+      "flavor_en": "1. Lemon Lime & Watermelon Ice & Black Ice Dragon Fruit Strawberry & Love 66",
+      "soonEta": "2026-04"
     },
     {
       "id": "p_8b084c694c4ac_19bffc068b4",
@@ -744,8 +744,8 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1776100026385,
-    "updatedAt": "2026-04-13T17:07:06.385Z",
+    "rev": 1776101076270,
+    "updatedAt": "2026-04-13T17:24:36.270Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
