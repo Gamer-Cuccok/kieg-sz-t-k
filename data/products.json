@@ -668,17 +668,17 @@
     {
       "id": "p_dff7056a3eded8_19cae7977fb",
       "categoryId": "vapsolo80k",
-      "status": "out",
-      "stock": 0,
+      "status": "soon",
+      "stock": 1,
       "visible": true,
       "secret": false,
       "price": null,
       "image": "https://i.ibb.co/N6fvn2Mz/15-HAPPY-RANCH-SEX-ON-THE-BEACH-WATERMELON-COCONUT-CHERRY-BERRY.png",
       "name_hu": "Vapsolo Quads 80k",
       "name_en": "Vapsolo Quads 80k",
-      "flavor_hu": "Jolly Rancher Cukorka & Sex On The Beach & Dinnye Kókusz & Cseresznye Bogyó",
-      "flavor_en": "Happy Ranch & Sex On The Beach & Watermelon Coconut & Cherry Berry",
-      "soonEta": ""
+      "flavor_hu": "11. Jolly Rancher Cukorka & Sex On The Beach & Dinnye Kókusz & Cseresznye Bogyó",
+      "flavor_en": "11. Happy Ranch & Sex On The Beach & Watermelon Coconut & Cherry Berry",
+      "soonEta": "2026-04"
     },
     {
       "id": "p_a52ce38bb9b78_19cae8202a0",
@@ -744,8 +744,8 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1776101621510,
-    "updatedAt": "2026-04-13T17:33:41.510Z",
+    "rev": 1776101726513,
+    "updatedAt": "2026-04-13T17:35:26.513Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
