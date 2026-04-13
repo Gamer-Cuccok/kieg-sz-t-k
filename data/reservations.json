@@ -1,1 +1,25 @@
-[]
+[
+  {
+    "id": "r_mnxdb259_1xwas7",
+    "publicCode": "148",
+    "createdAt": 1776095338653,
+    "expiresAt": 1776268138653,
+    "confirmed": false,
+    "editCount": 0,
+    "recorded": false,
+    "deleted": false,
+    "lastAction": "Új foglalás érkezett",
+    "items": [
+      {
+        "productId": "p_4895703c991ba8_19cae9ce8a4",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_a52ce38bb9b78_19cae8202a0",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
+  }
+]
