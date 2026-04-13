@@ -19,5 +19,23 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "r_mnxf98g1_1shdhz",
+    "publicCode": "802",
+    "createdAt": 1776098612738,
+    "expiresAt": 1776271412738,
+    "confirmed": false,
+    "editCount": 0,
+    "recorded": false,
+    "deleted": false,
+    "lastAction": "Új foglalás érkezett",
+    "items": [
+      {
+        "productId": "p_4f4efd0510951_19b6ae36cba",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
