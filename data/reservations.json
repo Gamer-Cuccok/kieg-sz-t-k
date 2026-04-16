@@ -5,10 +5,8 @@
     "createdAt": 1776324786481,
     "expiresAt": 1776497586481,
     "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "Új foglalás érkezett",
+    "modified": true,
+    "modifiedAt": 1776327317516,
     "items": [
       {
         "productId": "p_ffc645ec0ef398_19b5b5ed5eb",
