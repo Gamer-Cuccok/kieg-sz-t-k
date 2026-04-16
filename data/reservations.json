@@ -3,19 +3,14 @@
     "id": "r_mo15wx81_iqbssi",
     "publicCode": "863",
     "createdAt": 1776324786481,
-    "expiresAt": 1776497586481,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
     "modified": true,
-    "modifiedAt": 1776327320490,
+    "modifiedAt": 1776329243855,
     "items": [
       {
         "productId": "p_ffc645ec0ef398_19b5b5ed5eb",
         "qty": 3,
-        "unitPrice": 6000
-      },
-      {
-        "productId": "p_9842bfea4d24c_19b5b637a59",
-        "qty": 1,
         "unitPrice": 6000
       }
     ]
