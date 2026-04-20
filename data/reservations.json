@@ -1,1 +1,20 @@
-[]
+[
+  {
+    "id": "r_mo7f9b3m_e1jrre",
+    "publicCode": "353",
+    "createdAt": 1776703277938,
+    "expiresAt": 1776876077938,
+    "confirmed": false,
+    "editCount": 0,
+    "recorded": false,
+    "deleted": false,
+    "lastAction": "Új foglalás érkezett",
+    "items": [
+      {
+        "productId": "p_4895703c991ba8_19cae9ce8a4",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
+  }
+]
