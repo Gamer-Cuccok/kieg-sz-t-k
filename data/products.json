@@ -713,8 +713,8 @@
     {
       "id": "p_5aaf6d03437c8_19cae96fb2e",
       "categoryId": "vapsolo80k",
-      "status": "soon",
-      "stock": 1,
+      "status": "ok",
+      "stock": 20,
       "visible": true,
       "secret": false,
       "price": null,
@@ -723,7 +723,7 @@
       "name_en": "Vapsolo Quads 80k",
       "flavor_hu": "14. Mangó Ananász & Kék Málna Cseresznye & Dinnye Cseresznye & Szeder Menta",
       "flavor_en": "14. Mango Pineapple & Blue Razz Cherry & Watermelon Cherry & Blackberry Mint",
-      "soonEta": "2026-04"
+      "soonEta": ""
     },
     {
       "id": "p_4895703c991ba8_19cae9ce8a4",
@@ -744,8 +744,8 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1776861615831,
-    "updatedAt": "2026-04-22T12:40:15.831Z",
+    "rev": 1776861674832,
+    "updatedAt": "2026-04-22T12:41:14.832Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
