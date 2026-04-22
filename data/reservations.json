@@ -76,8 +76,8 @@
     "id": "r_moaa3u5n_z467o9",
     "publicCode": "817",
     "createdAt": 1776876023147,
-    "expiresAt": 1777048823147,
-    "confirmed": false,
+    "expiresAt": null,
+    "confirmed": true,
     "modified": false,
     "modifiedAt": 0,
     "items": [
