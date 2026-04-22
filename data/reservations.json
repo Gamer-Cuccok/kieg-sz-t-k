@@ -40,12 +40,10 @@
     "id": "r_moa45rgk_ipgoun",
     "publicCode": "836",
     "createdAt": 1776866035268,
-    "expiresAt": 1777038835268,
-    "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "Új foglalás érkezett",
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_4f4efd0510951_19b6ae36cba",
