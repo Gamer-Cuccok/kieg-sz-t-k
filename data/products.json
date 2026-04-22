@@ -741,11 +741,25 @@
       "soonEta": ""
     }
   ],
-  "popups": [],
+  "popups": [
+    {
+      "id": "popup_b404cc0355e37_19db53b0ac9",
+      "enabled": true,
+      "rev": 1776862044588,
+      "title_hu": "Új termékek elérhetőek",
+      "title_en": "Új termékek elérhetőek",
+      "categoryIds": [
+        "vapsolo80k"
+      ],
+      "productIds": [],
+      "createdAt": 1776862044588,
+      "updatedAt": 1776862044588
+    }
+  ],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1776861715716,
-    "updatedAt": "2026-04-22T12:41:55.716Z",
+    "rev": 1776862045831,
+    "updatedAt": "2026-04-22T12:47:25.831Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
