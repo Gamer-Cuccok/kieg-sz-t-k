@@ -71,12 +71,10 @@
     "id": "r_moac8vw7_jjk4z0",
     "publicCode": "481",
     "createdAt": 1776879617911,
-    "expiresAt": 1777052417911,
-    "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "Új foglalás érkezett",
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_03568182a15ac_19c7ae3aa7d",
