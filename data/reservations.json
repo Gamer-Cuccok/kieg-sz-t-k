@@ -47,22 +47,6 @@
     ]
   },
   {
-    "id": "r_moa6aned_17qs4d",
-    "publicCode": "881",
-    "createdAt": 1776869622517,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_bdf2876c776fe_19cae8d647b",
-        "qty": 1,
-        "unitPrice": 6500
-      }
-    ]
-  },
-  {
     "id": "r_moa9u8ai_76t9y7",
     "publicCode": "694",
     "createdAt": 1776875574907,
