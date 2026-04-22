@@ -653,8 +653,8 @@
     {
       "id": "p_7de60a56fee0d8_19cae6f3ed7",
       "categoryId": "vapsolo80k",
-      "status": "soon",
-      "stock": 1,
+      "status": "ok",
+      "stock": 10,
       "visible": true,
       "secret": false,
       "price": null,
@@ -663,7 +663,7 @@
       "name_en": "Vapsolo Quads 80k",
       "flavor_hu": "3. Intenzív Szőlő & Licsi Jég & Kivi Maracuja Guava & Barack Bogyó",
       "flavor_en": "3. Grape Burst & Lychee Ice & Kiwi Passion Fruit Guava & Peach Berry",
-      "soonEta": "2026-04"
+      "soonEta": ""
     },
     {
       "id": "p_dff7056a3eded8_19cae7977fb",
@@ -744,8 +744,8 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1776860720373,
-    "updatedAt": "2026-04-22T12:25:20.373Z",
+    "rev": 1776860804832,
+    "updatedAt": "2026-04-22T12:26:44.832Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
