@@ -16,27 +16,6 @@
     ]
   },
   {
-    "id": "r_moa2b02h_zqbbe8",
-    "publicCode": "631",
-    "createdAt": 1776862920473,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_81909e3d929628_19c7af58890",
-        "qty": 1,
-        "unitPrice": 6500
-      },
-      {
-        "productId": "p_8a393a08657b48_19b6ad67348",
-        "qty": 1,
-        "unitPrice": 6500
-      }
-    ]
-  },
-  {
     "id": "r_moa45rgk_ipgoun",
     "publicCode": "836",
     "createdAt": 1776866035268,
@@ -73,10 +52,8 @@
     "createdAt": 1776869622517,
     "expiresAt": 1777042422517,
     "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "Új foglalás érkezett",
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_bdf2876c776fe_19cae8d647b",
