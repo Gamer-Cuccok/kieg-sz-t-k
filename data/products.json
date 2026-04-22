@@ -698,8 +698,8 @@
     {
       "id": "p_bdf2876c776fe_19cae8d647b",
       "categoryId": "vapsolo80k",
-      "status": "soon",
-      "stock": 1,
+      "status": "ok",
+      "stock": 20,
       "visible": true,
       "secret": false,
       "price": null,
@@ -708,7 +708,7 @@
       "name_en": "Vapsolo Quads 80k",
       "flavor_hu": "13. Alma Barack & Kék Áfonya Dinnye & Sárkánygyümölcs Banán Cseresznye & Solo 1#",
       "flavor_en": "13. Apple Peach & Blueberry Watermelon & Dragon Fruit Banana Cherry & Solo 1#",
-      "soonEta": "2026-04"
+      "soonEta": ""
     },
     {
       "id": "p_5aaf6d03437c8_19cae96fb2e",
@@ -744,8 +744,8 @@
   "popups": [],
   "updatedAt": 1766663310090,
   "_meta": {
-    "rev": 1776861531205,
-    "updatedAt": "2026-04-22T12:38:51.205Z",
+    "rev": 1776861615831,
+    "updatedAt": "2026-04-22T12:40:15.831Z",
     "secretAccess": {
       "passwordHash": "60849c66285e827488bac601286f41bfd2d90bec7f151916432e4ad5d55c22c7",
       "durationMs": 900000
