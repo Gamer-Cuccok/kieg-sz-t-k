@@ -14,26 +14,5 @@
         "unitPrice": 7000
       }
     ]
-  },
-  {
-    "id": "r_moea6azc_nn9n5z",
-    "publicCode": "619",
-    "createdAt": 1777118002969,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_03568182a15ac_19c7ae3aa7d",
-        "qty": 1,
-        "unitPrice": 6500
-      },
-      {
-        "productId": "p_b862159bc3f608_19beb0c6380",
-        "qty": 1,
-        "unitPrice": 6500
-      }
-    ]
   }
 ]
