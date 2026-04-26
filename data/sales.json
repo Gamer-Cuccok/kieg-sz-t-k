@@ -2281,5 +2281,18 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_bc2593cd9966a_19dcb484750",
+    "date": "2026-04-26",
+    "name": "T. Dani",
+    "payment": "Vásárláskor | tc:3 (5)",
+    "items": [
+      {
+        "productId": "p_bdf2876c776fe_19cae8d647b",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
