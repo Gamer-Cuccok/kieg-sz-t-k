@@ -2307,5 +2307,18 @@
         "unitPrice": 5000
       }
     ]
+  },
+  {
+    "id": "s_d51cd7bd8151b_19dd4d0f1c6",
+    "date": "2026-04-28",
+    "name": "Pekk",
+    "payment": "Vásárláskor | tc:3 (5)",
+    "items": [
+      {
+        "productId": "p_81909e3d929628_19c7af58890",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
