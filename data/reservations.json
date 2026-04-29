@@ -19,12 +19,10 @@
     "id": "r_mok9yb42_8ahnc3",
     "publicCode": "953",
     "createdAt": 1777480426946,
-    "expiresAt": 1777653226946,
-    "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "Új foglalás érkezett",
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_8a393a08657b48_19b6ad67348",
