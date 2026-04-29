@@ -14,26 +14,5 @@
         "unitPrice": 7000
       }
     ]
-  },
-  {
-    "id": "r_mok9yb42_8ahnc3",
-    "publicCode": "953",
-    "createdAt": 1777480426946,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_8a393a08657b48_19b6ad67348",
-        "qty": 1,
-        "unitPrice": 6500
-      },
-      {
-        "productId": "p_7e90788f76589_19b6adc49b6",
-        "qty": 1,
-        "unitPrice": 6500
-      }
-    ]
   }
 ]
