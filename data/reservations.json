@@ -35,12 +35,10 @@
     "id": "r_molfiaa9_na3eks",
     "publicCode": "544",
     "createdAt": 1777550223249,
-    "expiresAt": 1777723023249,
-    "confirmed": false,
-    "editCount": 0,
-    "recorded": false,
-    "deleted": false,
-    "lastAction": "Új foglalás érkezett",
+    "expiresAt": null,
+    "confirmed": true,
+    "modified": false,
+    "modifiedAt": 0,
     "items": [
       {
         "productId": "p_8899c25f039f48_19beb1d7e76",
