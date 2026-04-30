@@ -30,21 +30,5 @@
         "unitPrice": 6500
       }
     ]
-  },
-  {
-    "id": "r_molfiaa9_na3eks",
-    "publicCode": "544",
-    "createdAt": 1777550223249,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_8899c25f039f48_19beb1d7e76",
-        "qty": 1,
-        "unitPrice": 6500
-      }
-    ]
   }
 ]
