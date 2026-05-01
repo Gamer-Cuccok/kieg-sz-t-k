@@ -16,22 +16,6 @@
     ]
   },
   {
-    "id": "r_momu4t8b_8nauoo",
-    "publicCode": "685",
-    "createdAt": 1777635255036,
-    "expiresAt": null,
-    "confirmed": true,
-    "modified": false,
-    "modifiedAt": 0,
-    "items": [
-      {
-        "productId": "p_8899c25f039f48_19beb1d7e76",
-        "qty": 2,
-        "unitPrice": 6500
-      }
-    ]
-  },
-  {
     "id": "r_momuseuo_g3pzo3",
     "publicCode": "581",
     "createdAt": 1777636356144,
