@@ -2382,5 +2382,23 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_73e2b903ab6758_19de37cb0c3",
+    "date": "2026-05-01",
+    "name": "B. Geri és havarja",
+    "payment": "Vásárláskor(egyiket még nem utalta el) | tc: 4 (6)",
+    "items": [
+      {
+        "productId": "p_03568182a15ac_19c7ae3aa7d",
+        "qty": 1,
+        "unitPrice": 0
+      },
+      {
+        "productId": "p_8899c25f039f48_19beb1d7e76",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
