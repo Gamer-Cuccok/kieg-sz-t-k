@@ -51,5 +51,23 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "r_momuseuo_g3pzo3",
+    "publicCode": "581",
+    "createdAt": 1777636356144,
+    "expiresAt": 1777809156144,
+    "confirmed": false,
+    "editCount": 0,
+    "recorded": false,
+    "deleted": false,
+    "lastAction": "Új foglalás érkezett",
+    "items": [
+      {
+        "productId": "p_441538bc936fa_19be641e8b6",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
