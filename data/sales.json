@@ -2431,5 +2431,23 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "s_6e6af2ecc92408_19ded887c56",
+    "date": "2026-05-03",
+    "name": "B. Zs munkatársai",
+    "payment": "Vásárláskor (1db ákié)  | tc: 0 (6)",
+    "items": [
+      {
+        "productId": "p_bdf2876c776fe_19cae8d647b",
+        "qty": 1,
+        "unitPrice": 6500
+      },
+      {
+        "productId": "p_dff7056a3eded8_19cae7977fb",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
