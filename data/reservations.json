@@ -51,5 +51,23 @@
         "unitPrice": 6500
       }
     ]
+  },
+  {
+    "id": "r_morcwvmf_oyrh4k",
+    "publicCode": "748",
+    "createdAt": 1777908662295,
+    "expiresAt": 1778081462295,
+    "confirmed": false,
+    "editCount": 0,
+    "recorded": false,
+    "deleted": false,
+    "lastAction": "Új foglalás érkezett",
+    "items": [
+      {
+        "productId": "p_b862159bc3f608_19beb0c6380",
+        "qty": 1,
+        "unitPrice": 6500
+      }
+    ]
   }
 ]
